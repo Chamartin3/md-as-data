@@ -190,3 +190,9 @@ temp_*.md
 # Generated Documentation
 docs/build/
 site/
+
+# Project-specific exclusions
+workdir/
+*.md
+!README.md
+!CLAUDE.md

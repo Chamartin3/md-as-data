@@ -480,7 +480,7 @@ class MarkdownFile:
 
         # Parse the document
         data = self._parser.parse(self._raw_content)
-        self.mddata = MarkdownData(data)
+        self.mddata = MarkdownData(data, parser=self._parser)
 
     def _load(self) -> str:
         """Load raw markdown content from file."""
