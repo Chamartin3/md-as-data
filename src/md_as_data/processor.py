@@ -1,13 +1,10 @@
-"""File loading and orchestration for markdown parsing and serialization."""
+"""Markdown processing functionality for parsing and serialization."""
 
-import json
-import re
 from collections.abc import Callable
 from enum import StrEnum
-from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-import frontmatter
+import frontmatter as fm
 import yaml
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -17,7 +14,6 @@ from .models import (
     BlockType,
     ContentTree,
     HeadingLevel,
-    MarkdownData,
     MarkdownDataDict,
     ParsedMarkdownData,
     Section,
@@ -83,27 +79,8 @@ class TokenType(StrEnum):
     HTML_INLINE = "html_inline"
 
 
-class TokenNesting(StrEnum):
-    """Token nesting values."""
-
-    OPENING = "1"
-    CLOSING = "-1"
-    SELF_CLOSING = "0"
-
-
-class HeadingTag(StrEnum):
-    """HTML heading tags."""
-
-    H1 = "h1"
-    H2 = "h2"
-    H3 = "h3"
-    H4 = "h4"
-    H5 = "h5"
-    H6 = "h6"
-
-
-class MarkdownParser:
-    """Parse markdown into MarkdownDocument."""
+class MarkdownProcessor:
+    """Handles all markdown transformations."""
 
     def __init__(self):
         self.md = MarkdownIt("commonmark")
@@ -117,10 +94,11 @@ class MarkdownParser:
             TokenType.BLOCKQUOTE_OPEN: self._handle_blockquote,
         }
 
-    def parse(self, content: str) -> ParsedMarkdownData:
-        """Parse markdown content into MarkdownDocument."""
+    # Parsing methods
+    def parse(self, text: str) -> ParsedMarkdownData:
+        """Parse full markdown document and return structured data."""
         # Use python-frontmatter to extract metadata
-        post = frontmatter.loads(content)
+        post = fm.loads(text)
         frontmatter_dict = post.metadata
         body = post.content
 
@@ -128,10 +106,170 @@ class MarkdownParser:
         tokens = self.md.parse(body)
         content_tree = self._build_content_tree(tokens)
 
-        return ParsedMarkdownData(
-            frontmatter=frontmatter_dict,
-            content=content_tree,
+        return cast(
+            "ParsedMarkdownData",
+            {
+                "frontmatter": frontmatter_dict,
+                "content": content_tree,
+            },
         )
+
+    def parse_content_to_section(self, text: str, section_path: str) -> Section:
+        """Parse markdown text into single section."""
+        # Wrap content in temporary section for proper parsing
+
+        section_id = section_path.split(".")[-1]
+        parent_path = ".".join(section_path.split(".")[:-1])
+        level = parent_path.count(".") + 1 if parent_path else 1
+
+        title = section_id.replace("_", " ").title()
+        is_empty = not text or not text.strip()
+
+        if is_empty:
+            raise ValueError("Content cannot be empty or whitespace only")
+
+        # Fallback for simple text without markdown headings
+        not_markdown = "#" not in text and "\n" not in text
+        if not_markdown:
+            block = Block(section_id, BlockType.PARAGRAPH, text.strip())
+            section = Section(title, HeadingLevel(level), parent_path)
+            section.id = section_id
+            section.add_block(block)
+
+        mdtitle = f"{'#' * level} {title}\n\n"
+        temp_markdown = f"{mdtitle}\n\n{text}"
+        parsed_data = self.parse(temp_markdown)
+        content_tree = parsed_data["content"]
+        if not content_tree or not content_tree.get_all_sections():
+            raise ValueError(f"Failed to parse content into sections:{text}")
+        first_section = content_tree.get_all_sections()[0]
+        section = Section(first_section.title, first_section.level, parent_path)
+        section.id = section_id
+        section.blocks = first_section.blocks
+        # Update block section references
+        for block in section.blocks:
+            block.section = section_id
+        return section
+
+    def parse_content_to_tree(self, text: str) -> ContentTree:
+        """Parse content into tree structure."""
+        # Use markdown-it-py to parse content structure
+        tokens = self.md.parse(text)
+        return self._build_content_tree(tokens)
+
+    # Serialization methods
+    def serialize_document(self, data: MarkdownDataDict) -> str:
+        """Serialize MarkdownData to markdown."""
+        return self._serialize_markdown_data(data)
+
+    def serialize_parsed_data(self, data: ParsedMarkdownData) -> str:
+        """Serialize ParsedMarkdownData to markdown."""
+        markdown_data_dict = cast(
+            MarkdownDataDict,
+            {"frontmatter": data["frontmatter"], "content": data["content"].to_dict()},
+        )
+        return self._serialize_markdown_data(markdown_data_dict)
+
+    def _serialize_markdown_data(self, data: MarkdownDataDict) -> str:
+        """Serialize complete document to markdown string."""
+        frontmatter = data["frontmatter"]
+        content = data["content"]
+        parts = []
+
+        # Serialize frontmatter
+        frontmatter_str = self._serialize_frontmatter(frontmatter)
+        if frontmatter_str:
+            parts.append(frontmatter_str)
+
+        # Serialize content
+        content_str = self._serialize_content(content)
+        if content_str:
+            parts.append(content_str)
+
+        return "\n".join(parts)
+
+    def _serialize_frontmatter(self, frontmatter: dict[str, Any]) -> str:
+        """Convert frontmatter to YAML format."""
+        if not frontmatter:
+            return ""
+
+        yaml_content = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
+        return f"---\n{yaml_content}---"
+
+    def _serialize_content(self, content_data) -> str:
+        """Convert content data to markdown."""
+        # content_data is a SectionData, reconstruct the text
+        return self._section_data_to_text(content_data)
+
+    def _section_data_to_text(self, section_data: dict) -> str:
+        """Convert SectionData dict to markdown text."""
+        lines = []
+
+        # Add heading if not root
+        if section_data.get("level", 0) > 0:
+            heading_marker = "#" * section_data["level"]
+            lines.append(f"{heading_marker} {section_data['title']}")
+            lines.append("")  # Empty line after heading
+
+        # Add blocks
+        if section_data.get("blocks"):
+            for block_data in section_data["blocks"]:
+                block_text = self._block_data_to_text(block_data)
+                if block_text:
+                    lines.append(block_text)
+                    lines.append("")  # Empty line after block
+
+        # Add subsections
+        if section_data.get("subsections"):
+            for subsection_data in section_data["subsections"]:
+                subsection_text = self._section_data_to_text(subsection_data)
+                if subsection_text:
+                    lines.append(subsection_text)
+
+        # Clean up trailing empty lines
+        while lines and lines[-1] == "":
+            lines.pop()
+
+        return "\n".join(lines)
+
+    def _block_data_to_text(self, block_data: dict) -> str:
+        """Convert BlockData dict to markdown text."""
+        block_type = block_data["type"]
+        content = block_data["content"]
+        metadata = block_data.get("metadata", {})
+
+        if block_type == "paragraph":
+            return str(content)
+        elif block_type == "code_block":
+            language = metadata.get("language", "")
+            return f"```{language}\n{content}\n```"
+        elif block_type == "list":
+            if isinstance(content, list):
+                return "\n".join(f"- {item}" for item in content)
+            else:
+                return f"- {content}"
+        elif block_type == "ordered_list":
+            if isinstance(content, list):
+                return "\n".join(f"{i + 1}. {item}" for i, item in enumerate(content))
+            else:
+                return f"1. {content}"
+        elif block_type == "blockquote":
+            content_str = str(content)
+            lines = content_str.split("\n")
+            return "\n".join(f"> {line}" for line in lines)
+        elif block_type == "link":
+            href = metadata.get("href", "#")
+            title = metadata.get("title", "")
+            title_attr = f' "{title}"' if title else ""
+            return f"[{content}]({href}{title_attr})"
+        elif block_type == "image":
+            src = metadata.get("src", "")
+            alt = metadata.get("alt", str(content))
+            title = metadata.get("title", "")
+            title_attr = f' "{title}"' if title else ""
+            return f"![{alt}]({src}{title_attr})"
+        else:
+            return str(content)
 
     def _build_content_tree(self, tokens: list[Token]) -> ContentTree:
         """Build content tree from markdown-it tokens."""
@@ -310,39 +448,6 @@ class MarkdownParser:
         # Return how many tokens to skip
         return j - i + 1
 
-    def _extract_links_and_images(self, content: str) -> list[Block]:
-        """Extract links and images from inline content."""
-        blocks = []
-
-        # Simple regex patterns for links and images
-        link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
-        image_pattern = r"!\[([^\]]*)\]\(([^)]+)\)"
-
-        # Find images first (they start with !)
-        for match in re.finditer(image_pattern, content):
-            alt_text = match.group(1)
-            src = match.group(2)
-            block = Block(
-                "", BlockType.IMAGE, alt_text
-            )  # No section_id for extracted links/images
-            block.metadata["src"] = src
-            block.metadata["alt"] = alt_text
-            blocks.append(block)
-
-        # Find links
-        for match in re.finditer(link_pattern, content):
-            text = match.group(1)
-            href = match.group(2)
-            # Skip if this is actually an image
-            if not content[max(0, match.start() - 1) : match.start()] == "!":
-                block = Block(
-                    "", BlockType.LINK, text
-                )  # No section_id for extracted links/images
-                block.metadata["href"] = href
-                blocks.append(block)
-
-        return blocks
-
     def register_handler(self, token_type: TokenType, handler: Callable) -> None:
         """Register a new token handler or override an existing one."""
         self.token_handlers[token_type] = handler
@@ -350,167 +455,3 @@ class MarkdownParser:
     def unregister_handler(self, token_type: TokenType) -> None:
         """Remove a token handler."""
         self.token_handlers.pop(token_type, None)
-
-
-class MarkdownSerializer:
-    """Convert MarkdownDocument back to markdown text."""
-
-    def serialize(self, data: MarkdownDataDict) -> str:
-        """Serialize complete document to markdown string."""
-        frontmatter = data["frontmatter"]
-        content = data["content"]
-        parts = []
-
-        # Serialize frontmatter
-        frontmatter_str = self._serialize_frontmatter(frontmatter)
-        if frontmatter_str:
-            parts.append(frontmatter_str)
-
-        # Serialize content
-        content_str = self._serialize_content(content)
-        if content_str:
-            parts.append(content_str)
-
-        return "\n".join(parts)
-
-    def _serialize_frontmatter(self, frontmatter: dict[str, Any]) -> str:
-        """Convert frontmatter to YAML format."""
-        if not frontmatter:
-            return ""
-
-        yaml_content = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
-        return f"---\n{yaml_content}---"
-
-    def _serialize_content(self, content_data) -> str:
-        """Convert content data to markdown."""
-        # content_data is a SectionData, reconstruct the text
-        return self._section_data_to_text(content_data)
-
-    def _section_data_to_text(self, section_data: dict) -> str:
-        """Convert SectionData dict to markdown text."""
-        lines = []
-
-        # Add heading if not root
-        if section_data.get("level", 0) > 0:
-            heading_marker = "#" * section_data["level"]
-            lines.append(f"{heading_marker} {section_data['title']}")
-            lines.append("")  # Empty line after heading
-
-        # Add blocks
-        if section_data.get("blocks"):
-            for block_data in section_data["blocks"]:
-                block_text = self._block_data_to_text(block_data)
-                if block_text:
-                    lines.append(block_text)
-                    lines.append("")  # Empty line after block
-
-        # Add subsections
-        if section_data.get("subsections"):
-            for subsection_data in section_data["subsections"]:
-                subsection_text = self._section_data_to_text(subsection_data)
-                if subsection_text:
-                    lines.append(subsection_text)
-
-        # Clean up trailing empty lines
-        while lines and lines[-1] == "":
-            lines.pop()
-
-        return "\n".join(lines)
-
-    def _block_data_to_text(self, block_data: dict) -> str:
-        """Convert BlockData dict to markdown text."""
-        block_type = block_data["type"]
-        content = block_data["content"]
-        metadata = block_data.get("metadata", {})
-
-        if block_type == "paragraph":
-            return str(content)
-        elif block_type == "code_block":
-            language = metadata.get("language", "")
-            return f"```{language}\n{content}\n```"
-        elif block_type == "list":
-            if isinstance(content, list):
-                return "\n".join(f"- {item}" for item in content)
-            else:
-                return f"- {content}"
-        elif block_type == "ordered_list":
-            if isinstance(content, list):
-                return "\n".join(f"{i + 1}. {item}" for i, item in enumerate(content))
-            else:
-                return f"1. {content}"
-        elif block_type == "blockquote":
-            content_str = str(content)
-            lines = content_str.split("\n")
-            return "\n".join(f"> {line}" for line in lines)
-        elif block_type == "link":
-            href = metadata.get("href", "#")
-            title = metadata.get("title", "")
-            title_attr = f' "{title}"' if title else ""
-            return f"[{content}]({href}{title_attr})"
-        elif block_type == "image":
-            src = metadata.get("src", "")
-            alt = metadata.get("alt", str(content))
-            title = metadata.get("title", "")
-            title_attr = f' "{title}"' if title else ""
-            return f"![{alt}]({src}{title_attr})"
-        else:
-            return str(content)
-
-
-class MarkdownFile:
-    """Manage read (parsing) and write (serializing) on a markdown file."""
-
-    mddata: MarkdownData
-
-    def register_handler(self, token_type: TokenType, handler: Callable) -> None:
-        """Register a new token handler or override an existing one."""
-        self._parser.register_handler(token_type, handler)
-
-    def unregister_handler(self, token_type: TokenType) -> None:
-        """Remove a token handler."""
-        self._parser.unregister_handler(token_type)
-
-    def __init__(self, filepath: str):
-        self.filepath = Path(filepath)
-        self._raw_content = self._load()
-
-        # Initialize parser and serializer instances
-        self._parser = MarkdownParser()
-        self._serializer = MarkdownSerializer()
-
-        # Parse the document
-        data = self._parser.parse(self._raw_content)
-        self.mddata = MarkdownData(data, parser=self._parser)
-
-    def _load(self) -> str:
-        """Load raw markdown content from file."""
-        if not self.filepath.exists():
-            raise FileNotFoundError(f"File not found: {self.filepath}")
-
-        if not self.filepath.is_file():
-            raise ValueError(f"Path is not a file: {self.filepath}")
-
-        return self.filepath.read_text(encoding="utf-8")
-
-    # Serialization methods
-    def to_json(self) -> str:
-        """Serialize document to JSON string."""
-        return json.dumps(self.mddata.to_dict(), indent=2)
-
-    def to_markdown(self) -> str:
-        """Serialize document back to markdown string."""
-        return self._serializer.serialize(self.mddata.to_dict())
-
-    def save(self, filepath: str | None = None) -> None:
-        """Save the document back to markdown file.
-
-        Args:
-            filepath: Optional path to save to. If None, saves to original file path.
-        """
-        target_path = Path(filepath) if filepath else self.filepath
-        markdown_content = self.to_markdown()
-        target_path.write_text(markdown_content, encoding="utf-8")
-
-    def save_as(self, filepath: str) -> None:
-        """Save the document to a new file path."""
-        self.save(filepath)

@@ -23,7 +23,7 @@ class MarkdownFile:
 
     # Properties
     @property
-    def document: MarkdownDocument
+    def mddata: MarkdownData
     @property
     def filepath: Path
 
@@ -34,22 +34,14 @@ class MarkdownFile:
     # File operations
     def save(self, filepath: str | None = None) -> None
     def save_as(self, filepath: str) -> None
-
-    # Data accessors
-    def get_frontmatter(self) -> dict[str, Any]
-    def get_sections(self) -> SectionsData
-    def get_blocks(self, section_id: str | None = None) -> BlocksData
-
-    # Parser extension
-    def register_handler(self, token_type: TokenType, handler: Callable) -> None
-    def unregister_handler(self, token_type: TokenType) -> None
 ```
 
 **Parameters:**
 - `filepath`: Path to markdown file (required)
-- `section_id`: Optional section identifier for targeted block retrieval
-- `token_type`: Token type for custom parser handlers
-- `handler`: Custom token handler function
+
+**Properties:**
+- `mddata`: The parsed MarkdownData object
+- `filepath`: Path to the markdown file
 
 **Methods:**
 - `to_json()`: Serialize document to JSON string
@@ -61,7 +53,7 @@ class MarkdownFile:
 
 ### MarkdownData
 
-Parsed document with frontmatter and content structure.
+Parsed document with frontmatter and content structure. Main interface for document manipulation.
 
 ```python
 class MarkdownData:
@@ -71,18 +63,30 @@ class MarkdownData:
     @property
     def data: ParsedMarkdownData
     @property
-    def frontmatter: dict[str, Any]
+    def frontmatter: FrontmatterProperties
     @property
     def content: ContentTree
 
     # Dynamic access
-    def __getattr__(self, name: str) -> Any  # Access frontmatter properties
-    def __setattr__(self, name: str, value: Any) -> None  # Set frontmatter properties
+    def __getattr__(self, name: str) -> FrontmatterPropertyValue | Section
+    def __setattr__(self, name: str, value: InputDataOptions) -> None
+
+    # Section operations
+    def get_section(self, section_id_or_path: str) -> Section | None
+    def get_all_sections(self) -> list[Section]
 
     # Data accessors
-    def get_frontmatter(self) -> dict[str, Any]
     def get_sections(self) -> SectionsData
     def get_blocks(self, section_id: str | None = None) -> BlocksData
+
+    # Mutation methods with policies
+    def append_to_section(self, section_id_or_path: str, block_markdown: str) -> None
+    def replace_section(self, section_id_or_path: str, section_contents: InputDataOptions) -> None
+    def update_section(self, section_id_or_path: str, section_contents: InputDataOptions) -> None
+
+    # Operation inference
+    def infer_operation_type(self, name: str, value: InputDataOptions,
+                             policy: SectionPolicy | None = None) -> UpdateOperation
 
     # Serialization
     def to_dict(self) -> MarkdownDataDict
@@ -93,9 +97,14 @@ class MarkdownData:
 - Content sections accessible through content tree (e.g., `doc.content.introduction`)
 
 **Methods:**
-- `get_frontmatter()`: Extract frontmatter as dictionary
+- `get_section()`: Get specific section by ID or path
+- `get_all_sections()`: Get list of all sections
 - `get_sections()`: Get all sections as structured data
 - `get_blocks()`: Get blocks from specific section or all sections
+- `append_to_section()`: Append markdown content to existing section
+- `replace_section()`: Replace entire section content
+- `update_section()`: Update section content while preserving subsections
+- `infer_operation_type()`: Determine operation type from value
 - `to_dict()`: Convert to JSON-serializable dictionary
 
 ---
@@ -138,6 +147,37 @@ class ContentTree:
 - `get_all_sections()`: Get all sections in tree
 - `get_all_blocks()`: Get all blocks from all sections
 - `add_section()`: Add section to tree with optional parent
+
+---
+
+### MarkdownProcessor
+
+Handles markdown parsing and serialization operations.
+
+```python
+class MarkdownProcessor:
+    def __init__(self) -> None
+
+    # Properties
+    @property
+    def token_handlers: dict[TokenType, Callable]
+
+    # Parsing methods
+    def parse(self, text: str) -> ParsedMarkdownData
+    def parse_content_to_section(self, text: str, section_path: str) -> Section
+
+    # Serialization methods
+    def serialize_document(self, document_data: MarkdownDataDict) -> str
+    def serialize_section(self, section: Section) -> str
+    def serialize_block(self, block: Block) -> str
+```
+
+**Methods:**
+- `parse()`: Parse full markdown document into structured data
+- `parse_content_to_section()`: Parse text into a single section
+- `serialize_document()`: Convert document data back to markdown
+- `serialize_section()`: Convert section to markdown text
+- `serialize_block()`: Convert block to markdown text
 
 ---
 
@@ -340,6 +380,9 @@ from md_as_data import (
     MarkdownDataDict, SectionData, BlockData,
     SectionsData, BlocksData, BlockMetadata
 )
+
+# Advanced processing (for custom handlers and extensions)
+from md_as_data import MarkdownProcessor, TokenType
 
 ```
 

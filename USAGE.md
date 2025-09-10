@@ -147,6 +147,8 @@ The Python SDK provides programmatic access to markdown documents as structured 
 
 ```python
 from md_as_data import MarkdownFile
+# For advanced content manipulation, also available:
+# from md_as_data import Section, Block, BlockType, HeadingLevel, SectionPolicy
 
 # Load a markdown file
 file = MarkdownFile('document.md')
@@ -225,10 +227,12 @@ intro_section = file.mddata.content.get_section('introduction')
 
 ## Advanced SDK Examples
 
+The SDK provides powerful programmatic modification capabilities, including the new dynamic content setting API that allows you to modify sections using simple assignment syntax with automatic parsing and policy-based merging.
+
 ### 1. Document Modification
 
 ```python
-from md_as_data import MarkdownFile, Section, Block, BlockType, HeadingLevel
+from md_as_data import MarkdownFile, Section, Block, BlockType, HeadingLevel, SectionPolicy
 
 # Load document
 file = MarkdownFile('document.md')
@@ -267,7 +271,196 @@ file.save()  # Save to original file
 file.save_as('updated_document.md')
 ```
 
-### 2. Content Analysis
+### 2. Dynamic Content Setting
+
+The new content setting API allows you to dynamically add and modify sections using simple assignment syntax with various content formats and policies.
+
+#### Setting Content with Strings
+
+```python
+from md_as_data import MarkdownFile
+
+# Load document
+file = MarkdownFile('document.md')
+doc = file.mddata
+
+# Set section content with raw markdown string
+doc.introduction = """# Welcome
+
+This is the introduction to our documentation.
+
+- Point 1: Getting started
+- Point 2: Basic concepts
+- Point 3: Advanced features
+
+```python
+print("Hello, World!")
+```
+"""
+
+# Verify section was created and content parsed
+intro = doc.get_section("introduction")
+print(f"Section: {intro.title}")
+print(f"Blocks: {len(intro.blocks)}")  # Multiple blocks from parsed markdown
+
+# Save changes
+file.save()
+```
+
+#### Setting Content with Structured Data
+
+```python
+from md_as_data import MarkdownFile, SectionPolicy
+
+file = MarkdownFile('document.md')
+doc = file.mddata
+
+# Set section using dictionary with raw content
+section_data = {
+    "id": "overview",
+    "title": "Overview",
+    "level": 1,
+    "path": "overview",
+    "content": "Overview text.\n\n- Item 1\n- Item 2",  # Raw markdown
+    "subsections": None
+}
+doc.overview = section_data
+
+# Set section using dictionary with structured blocks
+blocks_data = {
+    "id": "details",
+    "title": "Details",
+    "level": 2,
+    "path": "details",
+    "blocks": [  # Pre-structured blocks
+        {
+            "section_id": "details",
+            "type": "paragraph",
+            "content": "Detailed information here.",
+            "metadata": {}
+        },
+        {
+            "section_id": "details",
+            "type": "list",
+            "content": ["Feature A", "Feature B", "Feature C"],
+            "metadata": {}
+        }
+    ],
+    "subsections": []
+}
+doc.details = blocks_data
+
+file.save()
+```
+
+#### Policy-Based Content Operations
+
+The new system supports three mutation policies for controlling how content is merged:
+
+```python
+from md_as_data import MarkdownFile, SectionPolicy
+
+file = MarkdownFile('document.md')
+doc = file.mddata
+
+# Create initial section
+doc.updates = "Original content\n\n- Original item"
+
+# UPDATE policy (default) - replaces content and specified subsections
+doc.updates = ("Updated content\n\n- Updated item", SectionPolicy.UPDATE)
+
+# APPEND policy - adds content without removing existing
+doc.updates = ("Additional content\n\n- Additional item", SectionPolicy.APPEND)
+
+# REPLACE policy - completely replaces section and all subsections
+doc.updates = ("Replacement content", SectionPolicy.REPLACE)
+
+# View the final content
+updates_section = doc.get_section("updates")
+print(f"Final content has {len(updates_section.blocks)} blocks")
+
+file.save()
+```
+
+#### Frontmatter vs Section Content Detection
+
+The system intelligently distinguishes between frontmatter properties and section content:
+
+```python
+from md_as_data import MarkdownFile
+
+file = MarkdownFile('document.md')
+doc = file.mddata
+
+# Simple values become frontmatter properties
+doc.author = "John Doe"
+doc.version = "2.1"
+doc.status = "published"
+
+# Complex content becomes sections
+doc.changelog = """## Version 2.1
+
+- Added new features
+- Fixed important bugs
+- Updated documentation
+"""
+
+doc.api_reference = {
+    "id": "api",
+    "title": "API Reference",
+    "level": 1,
+    "path": "api",
+    "content": "Complete API documentation here..."
+}
+
+# Check what was created
+print("Frontmatter properties:", list(doc.frontmatter.keys()))
+print("Section IDs:", doc.content.keys)
+
+file.save()
+```
+
+#### Error Handling and Validation
+
+```python
+from md_as_data import MarkdownFile, SectionPolicy
+
+file = MarkdownFile('document.md')
+doc = file.mddata
+
+try:
+    # This raises ValueError - cannot set None content
+    doc.invalid_section = None
+except ValueError as e:
+    print(f"Content error: {e}")
+
+try:
+    # This raises ValueError - cannot specify both formats
+    invalid_data = {
+        "id": "bad",
+        "title": "Bad",
+        "level": 1,
+        "path": "bad",
+        "content": "text",  # Raw markdown
+        "blocks": []       # Structured blocks - conflict!
+    }
+    doc.bad_section = invalid_data
+except ValueError as e:
+    print(f"Format error: {e}")
+
+# If trying to set existing section with simple value
+doc.introduction = "Simple intro text"  # Creates section initially
+try:
+    # This raises NotImplementedError - can't overwrite with simple value
+    doc.introduction = "Different text"
+except NotImplementedError as e:
+    print(f"Update error: {e}")
+
+    # But policy-based updates work fine
+    doc.introduction = ("Updated intro text", SectionPolicy.UPDATE)
+```
+
+### 3. Content Analysis
 
 ```python
 from collections import Counter
@@ -299,7 +492,7 @@ for section in content.get_all_sections():
             print(f"  {block.content[:50]}...")
 ```
 
-### 3. Parser Extension
+### 4. Parser Extension
 
 ```python
 import tempfile
@@ -476,6 +669,43 @@ for md_file in Path('content/').glob('*.md'):
             print(f"  - {issue}")
     else:
         print(f"✅ {md_file}: Valid")
+```
+
+---
+
+## New Features Summary
+
+### Dynamic Content Setting API
+
+The library now provides a powerful dynamic content setting API that allows you to modify markdown documents using simple assignment syntax:
+
+- **Multiple Content Formats**: Set content using raw markdown strings, structured dictionaries, or Section objects
+- **Automatic Format Detection**: The system intelligently distinguishes between frontmatter properties and section content
+- **Policy-Based Merging**: Three policies (UPDATE, APPEND, REPLACE) give you precise control over content merging
+- **Intelligent Parsing**: Raw markdown content is automatically parsed into structured blocks with full CommonMark support
+
+### Key Components
+
+- **`SectionPolicy`** enum: Control how content merges (UPDATE/APPEND/REPLACE)
+- **Dynamic Assignment**: Use `doc.section_name = content` syntax for intuitive content setting
+- **Type Safety**: Built-in validation prevents common errors and ensures data integrity
+- **Backward Compatibility**: All existing APIs continue to work unchanged
+
+### Quick Reference
+
+```python
+from md_as_data import MarkdownFile, SectionPolicy
+
+doc = MarkdownFile('file.md').mddata
+
+# Frontmatter (simple values)
+doc.author = "Jane Doe"
+doc.version = "2.0"
+
+# Section content (complex content)
+doc.introduction = "# Welcome\n\nThis is the introduction..."
+doc.overview = {"id": "overview", "title": "Overview", "content": "..."}
+doc.updates = ("New content", SectionPolicy.APPEND)
 ```
 
 ---

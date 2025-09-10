@@ -1,0 +1,422 @@
+"""Data manipulation and dynamic access for markdown documents."""
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypedDict, TypeVar, cast, get_type_hints
+
+from .models import (
+    BlocksData,
+    ContentTree,
+    FrontmatterProperties,
+    FrontmatterPropertyValue,
+    FrontmatterValue,
+    MarkdownDataDict,
+    ParsedMarkdownData,
+    Section,
+    SectionData,
+    SectionPolicy,
+    SectionsData,
+)
+from .processor import MarkdownProcessor
+
+
+class UpdateInputDict(TypedDict, total=False):
+    """Base for dict to define data for update."""
+    policy: SectionPolicy
+
+class InputDictSectionContent(UpdateInputDict):
+    """Section input using markdown text."""
+    content: str
+
+class InputDictSectionData(SectionData, UpdateInputDict):
+    """Structured section input (when section fields are provided 
+    additionally to policy """
+    pass
+
+class InputDictSectionObject(UpdateInputDict):
+    """Explicit section input (when Section object is provided)"""
+    section: Section
+
+InputDataDictOptions = (
+    InputDictSectionContent | InputDictSectionData | InputDictSectionObject
+)
+
+TDict = TypeVar("TDict", bound=InputDataDictOptions)
+
+def validate_typed_dict(
+    data: InputDataDictOptions | dict[str, Any], typed_dict_class: type[TDict]
+) -> TDict | None:
+    hints = get_type_hints(typed_dict_class)
+    matches = all(
+        key in data and isinstance(data[key], hint) for key, hint in hints.items()
+    )
+    return cast(TDict, data) if matches else None
+
+
+InputDataOptions = FrontmatterValue | Section | InputDataDictOptions
+
+class UpdateOperationTypes(Enum):
+    """Public enum for operation types."""
+
+    PROPERTY = "frontmatter"
+    SECTION = "section"
+    SECTION_TEXT = "section_text"
+    SECTION_TEXT_STRUCTURED = "section_text_structured"
+    SECTION_EXPLICIT = "section_explicit"
+    SECTION_STRUCTURED = "section_structured"
+
+    @classmethod
+    def infer_from_value(cls, value: InputDataOptions) -> "UpdateOperationTypes":
+        if isinstance(value, Section):
+            return cls.SECTION
+        if isinstance(value, str):
+            if cls._looks_like_section_text(value):
+                # Simple string, treat as frontmatter
+                return cls.SECTION_TEXT
+            else:
+                return cls.PROPERTY
+        if isinstance(value, int | float | bool | datetime):
+            # Primitive types, treat as frontmatter
+            return cls.PROPERTY
+        if isinstance(value, dict):
+            return cls._classify_dict_input(value)
+        raise ValueError(f"Unsupported input type: {type(value)}")
+
+    @classmethod
+    def _classify_dict_input(
+        cls, value: InputDataDictOptions
+    ) -> "UpdateOperationTypes":
+        """Classify dict as vorect type."""
+        section_text = validate_typed_dict(value, InputDictSectionContent)
+        if section_text is not None:
+            return cls.SECTION_TEXT_STRUCTURED
+        explicit_section = validate_typed_dict(value, InputDictSectionObject)
+        if explicit_section is not None:
+            return cls.SECTION_EXPLICIT
+        structured_section = validate_typed_dict(value, InputDictSectionData)
+        if structured_section is not None:
+            return cls.SECTION_STRUCTURED
+        return cls.PROPERTY
+
+    @classmethod
+    def _looks_like_section_text(cls, value: str) -> bool:
+        """Check if string looks like section content."""
+        # Multiline content
+        if "\n" in value:
+            return True
+
+        # Long content (likely prose)
+        if len(value) > 600:
+            return True
+
+        return False
+
+
+@dataclass(frozen=True)
+class UpdateOperation:
+    """Represents a validated update operation for MarkdownData.
+    Encapsulates all necessary information for validation and execution
+    of updates to frontmatter properties or content sections.
+    """
+
+    TYPES = UpdateOperationTypes
+
+    # Required fields
+    target: str
+    data: InputDataOptions
+    type: UpdateOperationTypes
+    policy: SectionPolicy | None = None
+
+    # Computed fields
+    # policy: SectionPolicy
+    # prepared_data: Section | FrontmatterValue
+
+    @property
+    def dict_inputs(self) -> set["UpdateOperationTypes"]:
+        """Operation types that accept dict inputs."""
+        return {
+            self.TYPES.SECTION_TEXT_STRUCTURED,
+            self.TYPES.SECTION_STRUCTURED,
+            self.TYPES.SECTION_EXPLICIT,
+        }
+
+    @property
+    def text_inputs(self) -> set[UpdateOperationTypes]:
+        """Operation types that accept text inputs."""
+        return {self.TYPES.SECTION_TEXT, self.TYPES.SECTION_TEXT_STRUCTURED}
+
+    @property
+    def prepared_data(self) -> Section | FrontmatterValue:
+        """Get prepared data for the operation."""
+        return self._get_prepared_data(self.data, self.target)
+
+    @property
+    def section_policy(self) -> SectionPolicy:
+        """Get policy for the operation."""
+        if self.policy is not None:
+            return self.policy
+        return self._get_policy(self.data)
+
+    def _get_policy(self, value: InputDataOptions) -> SectionPolicy:
+        """Extract policy from dict input, defaulting to UPDATE."""
+        if self in self.dict_inputs:
+            value = cast(InputDataDictOptions, value)
+            policy = value.get("policy")
+            if isinstance(policy, SectionPolicy):
+                return policy
+            elif isinstance(policy, str):
+                try:
+                    return SectionPolicy(policy)
+                except ValueError:
+                    raise ValueError(f"Invalid policy value: {policy}")
+            return SectionPolicy.UPDATE
+        return SectionPolicy.UPDATE
+
+    def _get_section_from_text(self, text: str, path: str) -> Section:
+        """Parse markdown text to create Section."""
+        processor = MarkdownProcessor()
+        return processor.parse_content_to_section(text, path)
+
+    def _get_prepared_data(
+        self, value: InputDataOptions, path: str
+    ) -> Section | FrontmatterValue:
+        """Prepare data based on operation type."""
+        if self.type == self.TYPES.PROPERTY:
+            return cast(FrontmatterValue, value)
+
+        if self.type == self.TYPES.SECTION:
+            return cast(Section, value)
+
+        if self.type in self.text_inputs:
+            if self == self.TYPES.SECTION_TEXT_STRUCTURED:
+                dict_value = cast(InputDictSectionContent, value)
+                text = dict_value["content"]
+            else:
+                text = cast(str, value)
+                return self._get_section_from_text(text, path)
+
+        if self.type == self.TYPES.SECTION_STRUCTURED:
+            dict_value = cast(InputDictSectionData, value)
+            dict_value = dict_value.copy()
+            dict_value.pop("policy", None)
+            return Section.from_dict(dict_value)
+
+        if self.type == self.TYPES.SECTION_EXPLICIT:
+            dict_value = cast(InputDictSectionObject, value)
+            section_obj = dict_value.get("section")
+            if not isinstance(section_obj, Section) or not dict_value:
+                raise ValueError("Invalid Section object in input")
+            return section_obj
+
+        raise ValueError(f"Unsupported operation type: {self}")
+
+    @property
+    def is_content_operation(self) -> bool:
+        """Check if operation targets content (section)."""
+        return self.type in {
+            self.TYPES.SECTION,
+            self.TYPES.SECTION_TEXT,
+            self.TYPES.SECTION_TEXT_STRUCTURED,
+            self.TYPES.SECTION_EXPLICIT,
+            self.TYPES.SECTION_STRUCTURED,
+        }
+
+    @property
+    def is_property_operation(self) -> bool:
+        """Check if operation targets frontmatter property."""
+        return self.type == self.TYPES.PROPERTY
+
+
+class MarkdownData:
+    """Document with frontmatter and content structure.
+
+    MarkdownData is the exclusive owner of the parser and handles all
+    content parsing before delegating structural operations to ContentTree.
+    """
+
+    _content: ContentTree
+    _frontmatter: FrontmatterProperties
+
+    def __init__(self, parsed_data: ParsedMarkdownData) -> None:
+        # Use object.__setattr__ to bypass our custom __setattr__ during init
+        object.__setattr__(self, "_frontmatter", parsed_data["frontmatter"])
+        object.__setattr__(self, "_content", parsed_data["content"])
+
+    def __repr__(self) -> str:
+        return (
+            "<MarkdownData "
+            f"properties={len(self.frontmatter.keys())} "
+            f"sections={len(self.content.keys)} "
+            f"frontmatter_keys={list(self.frontmatter.keys())}"
+            ">"
+        )
+
+    def __dir__(self):
+        """Include frontmatter keys in dir() output for better introspection."""
+        return ["data"] + list(self.frontmatter.keys()) + self._content.keys
+
+    @property
+    def data(self) -> ParsedMarkdownData:
+        """Get complete document data."""
+        return {"frontmatter": self._frontmatter, "content": self._content}
+
+    @property
+    def frontmatter(self) -> FrontmatterProperties:
+        """Get frontmatter dictionary."""
+        return self._frontmatter
+
+    @property
+    def content(self) -> ContentTree:
+        """Get content tree."""
+        return self._content
+
+    def get_section(self, section_id_or_path: str) -> Section | None:
+        """Get section by ID or path."""
+        return self._content.get_section(section_id_or_path)
+
+    def get_all_sections(self) -> list[Section]:
+        """Get all sections."""
+        return self._content.get_all_sections()
+
+    def __getattr__(self, name: str) -> FrontmatterPropertyValue | Section:
+        """Dynamic access to frontmatter properties."""
+        if name.startswith("_"):
+            raise AttributeError("Cannot access private attribute")
+
+        # First check if it's a frontmatter property
+        if name in self.frontmatter:
+            return self.frontmatter[name]
+
+        if name in self._content.keys:
+            section = self._content.__getattr__(name)
+            if section is not None:
+                return section
+
+        # If not found in frontmatter, raise AttributeError for proper behavior
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
+    def get_sections(self) -> SectionsData:
+        """Get all sections from the content tree as structured data."""
+        sections_list = [
+            section.to_dict() for section in self.content.get_all_sections()
+        ]
+        sections_by_id = {
+            section.id: section.to_dict() for section in self.content.get_all_sections()
+        }
+        return {"sections": sections_list, "sections_by_id": sections_by_id}
+
+    def get_blocks(self, section_id: str | None = None) -> BlocksData:
+        """Get blocks from a specific section or all sections as structured data."""
+        if section_id:
+            section = self.content.get_section(section_id)
+            if section:
+                return {"blocks": [b.to_dict() for b in section.blocks]}
+            return {"blocks": []}
+
+        blocks = []
+        for section in self.content.get_all_sections():
+            blocks.extend([b.to_dict() for b in section.blocks])
+        return {"blocks": blocks}
+
+    # Update operations
+    def infer_operation_type(
+        self,
+        name: str,
+        value: InputDataOptions,
+        policy: SectionPolicy | None = None,
+    ) -> UpdateOperation:
+        """Infer operation type from property name and value."""
+        if not name or not isinstance(name, str):
+            raise ValueError("Property name must be a non-empty string")
+        if name.startswith("_"):
+            raise AttributeError("Cannot modify private attribute")
+
+        content_paths = self._content.paths
+        property_list = list(self._content.keys)
+
+        if name in property_list:
+            operation_type = UpdateOperationTypes.PROPERTY
+        elif Section.is_path(name) and name in content_paths:
+            operation_type = UpdateOperationTypes.SECTION
+        else:
+            operation_type = UpdateOperationTypes.infer_from_value(value)
+        return UpdateOperation(
+            target=name,
+            type=operation_type,
+            data=value,
+            policy=policy,
+        )
+
+    # Mutation methods
+
+    def _set_frontmatter_property(self, operation: UpdateOperation) -> None:
+        """Set frontmatter property."""
+        key = operation.target
+        value = cast(FrontmatterValue, operation.data)
+        self._frontmatter[key] = value
+
+    def _set_content(self, operation: UpdateOperation) -> None:
+        """Set section content with policy support."""
+        try:
+            section = cast(Section, operation.data)
+            section_path = operation.target
+            policy = operation.section_policy
+            # Delegate to ContentTree for structural operation
+            self._content.set_section(section, section_path, policy)
+
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Failed to set section '{operation}': {e}") from e
+
+    def __setattr__(self, name: str, value: InputDataOptions) -> None:
+        """Dynamic property setting with clear input validation."""
+        # Use the InputValidator for all validation and Section preparation
+        operation = self.infer_operation_type(name, value)
+        if operation.is_property_operation:
+            self._set_frontmatter_property(operation)
+        else:
+            self._set_content(operation)
+
+    # Public mutation methods
+    def append_to_section(self, section_id_or_path: str, block_markdown: str) -> None:
+        """Append a block of markdown to a section."""
+        operation = UpdateOperation(
+            target=section_id_or_path,
+            type=UpdateOperationTypes.SECTION_TEXT,
+            data=block_markdown,
+            policy=SectionPolicy.APPEND,
+        )
+        self._set_content(operation)
+
+    def replace_section(
+        self, section_id_or_path: str, section_contents: InputDataOptions
+    ) -> None:
+        """Replace the entire content of a section."""
+        operation = self.infer_operation_type(
+            section_id_or_path,
+            section_contents,
+            policy=SectionPolicy.REPLACE,
+        )
+        if not operation.is_content_operation:
+            raise ValueError("replace_section requires a section-related input")
+        self._set_content(operation)
+
+    def update_section(
+        self, section_id_or_path: str, section_contents: InputDataOptions
+    ) -> None:
+        """Update (merge) content of a section."""
+        operation = self.infer_operation_type(
+            section_id_or_path,
+            section_contents,
+            policy=SectionPolicy.UPDATE,
+        )
+        if not operation.is_content_operation:
+            raise ValueError("update_section requires a section-related input")
+        self._set_content(operation)
+
+    # Serialization
+    def to_dict(self) -> MarkdownDataDict:
+        """Convert to JSON-serializable dictionary."""
+        return {"frontmatter": self.frontmatter, "content": self.content.to_dict()}

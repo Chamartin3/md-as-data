@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, Union, cast
+from typing import TypedDict, TypeVar, Union
 
-if TYPE_CHECKING:
-    from .file import MarkdownParser
+# Type aliases for frontmatter properties
+FrontmatterValue = str | int | float | bool | list[str]
+FrontmatterProperties = dict[str, FrontmatterValue]
 
 
 class BlockType(Enum):
@@ -42,20 +43,12 @@ class SectionPolicy(Enum):
     APPEND = "append"  # Add content without removing existing content
 
 
-class InputType(Enum):
-    """Types of input for __setattr__ validation."""
-
-    FRONTMATTER_PROPERTY = "frontmatter_property"
-    SECTION_CONTENT_WITH_POLICY = "section_content_with_policy"
-    SECTION_CONTENT_DEFAULT = "section_content_default"
-
-
-class ValidationResult(TypedDict):
-    """Result from input validation."""
-
-    input_type: InputType
-    content: ContentInput | FrontmatterPropertyValue | None
-    policy: SectionPolicy | None
+# Public input type for external API (simplified)
+InputDataOptions = Union[
+    FrontmatterValue,  # Simple frontmatter value (inferred)
+    dict,  # Various dict formats with optional policy
+    "Section",  # Section object
+]
 
 
 class BlockMetadata(TypedDict, total=False):
@@ -74,7 +67,7 @@ class BlockData(TypedDict):
     section_id: str  # ID of the section this block belongs to
     type: str  # BlockType value
     content: str | list[str]
-    metadata: BlockMetadata
+    metadata: dict[str, str]
 
 
 class Block:
@@ -86,7 +79,7 @@ class Block:
         self.section = section_id
         self.type = block_type
         self.content = content
-        self.metadata: BlockMetadata = {}
+        self.metadata: dict[str, str] = {}
 
     def to_dict(self) -> BlockData:
         """Convert block to dictionary structure."""
@@ -373,13 +366,12 @@ class Section:
 
 
 SectionsMap = dict[str, Section]
-ContentInput = Union[str, dict[str, Any], "Section"]
+ContentInput = Union[str, dict[str, str], "Section"]
 
 # Generic frontmatter properties type
 # Type alias for frontmatter property values
-FrontmatterPropertyValue = str | int | float | bool | list[str] | None | Any
+FrontmatterPropertyValue = FrontmatterValue | None
 FrontmatterProperty = TypeVar("FrontmatterProperty", bound=FrontmatterPropertyValue)
-FrontmatterProperties = dict[str, FrontmatterPropertyValue]
 
 
 class ContentTree:
@@ -628,14 +620,14 @@ class ContentTree:
 class ParsedMarkdownData(TypedDict):
     """Complete data structure after parsing."""
 
-    frontmatter: FrontmatterProperties  # Flexible frontmatter
+    frontmatter: dict[str, str | int | float | bool | list[str]]  # Flexible frontmatter
     content: ContentTree  # Root section
 
 
 class MarkdownDataDict(TypedDict):
     """Complete document structure for JSON export."""
 
-    frontmatter: FrontmatterProperties  # Flexible frontmatter
+    frontmatter: dict[str, str | int | float | bool | list[str]]  # Flexible frontmatter
     content: SectionData  # Root section
 
 
@@ -671,379 +663,3 @@ class SectionBlocksData(TypedDict):
     path: str
     blocks: list[BlockData]
     subsections: list[SectionBlocksData] | None
-
-
-class MarkdownData:
-    """Document with frontmatter and content structure.
-
-    MarkdownData is the exclusive owner of the parser and handles all
-    content parsing before delegating structural operations to ContentTree.
-    """
-
-    _content: ContentTree
-    _frontmatter: FrontmatterProperties
-
-    def __init__(
-        self, parsed_data: ParsedMarkdownData, parser: MarkdownParser | None = None
-    ) -> None:
-        # Use object.__setattr__ to bypass our custom __setattr__ during init
-        object.__setattr__(self, "_frontmatter", parsed_data["frontmatter"])
-        object.__setattr__(self, "_content", parsed_data["content"])
-        object.__setattr__(self, "_parser", parser)
-
-    def __repr__(self) -> str:
-        return (
-            "<MarkdownData "
-            f"properties={len(self.frontmatter.keys())} "
-            f"sections={len(self.content.keys)} "
-            f"frontmatter_keys={list(self.frontmatter.keys())}"
-            ">"
-        )
-
-    def __dir__(self):
-        """Include frontmatter keys in dir() output for better introspection."""
-        return ["data"] + list(self.frontmatter.keys()) + self._content.keys
-
-    @property
-    def data(self) -> ParsedMarkdownData:
-        """Get complete document data."""
-        return {"frontmatter": self._frontmatter, "content": self._content}
-
-    @property
-    def frontmatter(self) -> FrontmatterProperties:
-        """Get frontmatter dictionary."""
-        return self._frontmatter
-
-    @property
-    def content(self) -> ContentTree:
-        """Get content tree."""
-        return self._content
-
-    def get_section(self, section_id_or_path: str) -> Section | None:
-        """Get section by ID or path."""
-        return self._content.get_section(section_id_or_path)
-
-    def get_all_sections(self) -> list[Section]:
-        """Get all sections."""
-        return self._content.get_all_sections()
-
-    def __getattr__(self, name: str) -> FrontmatterPropertyValue | Section:
-        """Dynamic access to frontmatter properties."""
-        if name.startswith("_"):
-            raise AttributeError("Cannot access private attribute")
-
-        # First check if it's a frontmatter property
-        if name in self.frontmatter:
-            return self.frontmatter[name]
-
-        if name in self._content.keys:
-            section = self._content.__getattr__(name)
-            if section is not None:
-                return section
-
-        # If not found in frontmatter, raise AttributeError for proper behavior
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
-
-    # Mutation methods
-
-    def _set_frontmatter_property(
-        self, key: str, value: FrontmatterPropertyValue
-    ) -> None:
-        """Set frontmatter property."""
-        self._frontmatter[key] = value
-
-    def _set_content(
-        self,
-        content: ContentInput,
-        section_path: str | None,
-        policy: SectionPolicy = SectionPolicy.UPDATE,
-    ) -> None:
-        """Set section content with policy support.
-
-        MarkdownData handles all content parsing, then delegates structural
-        operations to ContentTree with fully parsed Section objects.
-        """
-        if section_path is None:
-            raise ValueError("section_path cannot be None for content setting")
-
-        try:
-            # 1. Parse and prepare section using MarkdownData's parser
-            parsed_section = self._prepare_section(content, section_path)
-
-            # 2. Delegate to ContentTree for structural operation
-            self._content.set_section(parsed_section, section_path, policy)
-
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Failed to set section '{section_path}': {e}") from e
-
-    def _prepare_section(self, content: ContentInput, section_path: str) -> Section:
-        """Prepare section content and parse markdown using MarkdownData's parser."""
-
-        if content is None:
-            raise ValueError("content cannot be None")
-
-        if isinstance(content, str):
-            # Handle raw markdown string
-            section_data = self._create_section_data_from_markdown(
-                markdown_content=content, section_path=section_path
-            )
-            return Section.from_dict(section_data)
-
-        elif isinstance(content, dict):
-            # Validate format first
-            input_data = cast(SectionInputData, content)
-            self._validate_section_input_format(input_data)
-
-            # Handle content vs blocks format
-            if "content" in input_data:
-                # Parse markdown content to blocks format
-                section_data = self._create_section_data_from_markdown(
-                    markdown_content=input_data["content"],
-                    section_id=input_data.get("id"),
-                    title=input_data.get("title"),
-                    level=input_data.get("level"),
-                    section_path=input_data.get("path", "root"),
-                    subsections=cast(
-                        "list[SectionContentData] | None", input_data.get("subsections")
-                    ),
-                )
-                return Section.from_dict(section_data)
-            else:
-                # Handle blocks format directly
-                blocks_data = cast(SectionData, content)
-                return Section.from_dict(blocks_data)
-
-        else:
-            # Handle Section object - return as-is
-            return content
-
-    def _validate_section_input_format(self, content: SectionInputData) -> None:
-        """Validate section input format (content OR blocks, not both)."""
-        has_content = "content" in content
-        has_blocks = "blocks" in content
-
-        if has_content and has_blocks:
-            raise ValueError(
-                "Cannot specify both 'content' and 'blocks' fields - choose one format"
-            )
-
-        if not (has_content or has_blocks):
-            raise ValueError(
-                "Must provide either 'content' (markdown text) or 'blocks' format"
-            )
-
-        # Type validation
-        if has_content and not isinstance(content["content"], str):
-            raise TypeError("'content' field must be a string")
-
-        if has_blocks and not isinstance(content["blocks"], list):
-            raise TypeError("'blocks' field must be a list")
-
-    def _create_section_data_from_markdown(
-        self,
-        markdown_content: str,
-        section_path: str,
-        section_id: str | None = None,
-        title: str | None = None,
-        level: int | None = None,
-        subsections: list[SectionContentData] | None = None,
-    ) -> SectionData:
-        """Create SectionData from markdown content with optional metadata.
-
-        This method parses markdown content directly into a complete SectionData
-        structure, avoiding the need for temporary sections.
-        """
-        # Derive missing fields from section_path
-        final_section_id = section_id or section_path.split(".")[-1]
-        final_title = title or final_section_id.replace("_", " ").title()
-        final_level = level or 1
-        final_subsections = subsections or []
-
-        # Parse markdown content directly into SectionData
-        if not markdown_content or not markdown_content.strip():
-            blocks_data = []
-        elif not self._parser:
-            # Fallback: create paragraph block data
-            blocks_data = [
-                {
-                    "section_id": final_section_id,
-                    "type": BlockType.PARAGRAPH.value,
-                    "content": markdown_content.strip(),
-                    "metadata": {},
-                }
-            ]
-        else:
-            # Parse using the parser with temporary section wrapper
-            try:
-                # Wrap content in temporary section for proper parsing
-                temp_markdown = f"# Temp\n\n{markdown_content}"
-                parsed_data = self._parser.parse(temp_markdown)  # type: ignore[attr-defined]
-                content_tree = parsed_data["content"]
-
-                if content_tree and content_tree.get_all_sections():
-                    # Extract blocks from the first (temporary) section
-                    first_section = content_tree.get_all_sections()[0]
-                    blocks_data = [block.to_dict() for block in first_section.blocks]
-                    # Update section references in block data to use final section ID
-                    for block_data in blocks_data:
-                        block_data["section_id"] = final_section_id
-                else:
-                    blocks_data = []
-            except Exception:
-                # Fallback to paragraph block on parse error
-                blocks_data = [
-                    {
-                        "section_id": final_section_id,
-                        "type": BlockType.PARAGRAPH.value,
-                        "content": markdown_content.strip(),
-                        "metadata": {},
-                    }
-                ]
-
-        # Create complete SectionData structure
-        return cast(
-            SectionData,
-            {
-                "id": final_section_id,
-                "title": final_title,
-                "level": final_level,
-                "path": section_path,
-                "blocks": blocks_data,
-                "subsections": final_subsections,
-            },
-        )
-
-    def _validate_input(
-        self,
-        name: str,
-        value: FrontmatterPropertyValue
-        | ContentInput
-        | tuple[ContentInput, SectionPolicy],
-    ) -> ValidationResult:
-        """Validate input and return the appropriate handling strategy."""
-        # Basic validation
-        if name.startswith("_"):
-            raise AttributeError("Cannot modify private attribute")
-
-        if value is None:
-            raise ValueError("content cannot be None")
-
-        # Check if trying to set existing section directly (not allowed in old API)
-        if name in self._content.keys:
-            # Only allow explicit section content (dict with section fields,
-            # tuples with policy, Section objects)
-            is_explicit_section_data = (
-                isinstance(value, dict)
-                and any(key in value for key in ["content", "blocks", "title", "level"])
-                or isinstance(value, tuple)
-                and len(value) == 2
-                and isinstance(value[1], SectionPolicy)
-                or hasattr(value, "add_block")  # Section object
-            )
-            if not is_explicit_section_data:
-                raise NotImplementedError("Directly setting sections is not supported")
-
-        # Determine input type based on content analysis
-        # Policy tuple: content with explicit policy
-        if isinstance(value, tuple) and len(value) == 2:
-            content, policy = value
-            if not isinstance(policy, SectionPolicy):
-                raise TypeError(
-                    f"Policy must be SectionPolicy enum, got {type(policy)}"
-                )
-            return {
-                "input_type": InputType.SECTION_CONTENT_WITH_POLICY,
-                "content": cast(ContentInput, content),
-                "policy": policy,
-            }
-
-        # Check if this looks like section content (not a simple frontmatter value)
-        is_section_content = (
-            isinstance(value, dict)
-            and any(key in value for key in ["content", "blocks", "title", "level"])
-            or isinstance(value, str)
-            and (
-                "\n" in value  # Multiline content
-                or len(value) > 50  # Long content (likely prose, not metadata)
-                or any(
-                    word in value.lower()
-                    for word in ["content", "paragraph", "section", "chapter"]
-                )  # Content keywords
-            )
-            or hasattr(value, "add_block")  # Section object
-        )
-
-        if is_section_content:
-            return {
-                "input_type": InputType.SECTION_CONTENT_DEFAULT,
-                "content": cast(ContentInput, value),
-                "policy": SectionPolicy.UPDATE,
-            }
-        else:
-            # Treat as frontmatter property
-            return {
-                "input_type": InputType.FRONTMATTER_PROPERTY,
-                "content": cast(FrontmatterPropertyValue, value),
-                "policy": None,
-            }
-
-    def __setattr__(
-        self,
-        name: str,
-        value: FrontmatterPropertyValue
-        | ContentInput
-        | tuple[ContentInput, SectionPolicy],
-    ) -> None:
-        """Dynamic property setting with policy support."""
-        # Validate input and determine handling strategy
-        validation = self._validate_input(name, value)
-
-        # Route to appropriate handler based on input type
-        if validation["input_type"] == InputType.SECTION_CONTENT_WITH_POLICY:
-            return self._set_content(
-                cast(ContentInput, validation["content"]),
-                name,
-                cast(SectionPolicy, validation["policy"]),
-            )
-        elif validation["input_type"] == InputType.SECTION_CONTENT_DEFAULT:
-            return self._set_content(
-                cast(ContentInput, validation["content"]),
-                name,
-                cast(SectionPolicy, validation["policy"]),
-            )
-        elif validation["input_type"] == InputType.FRONTMATTER_PROPERTY:
-            return self._set_frontmatter_property(
-                name, cast(FrontmatterPropertyValue, validation["content"])
-            )
-        else:
-            raise ValueError(f"Unknown input type: {validation['input_type']}")
-
-    def get_sections(self) -> SectionsData:
-        """Get all sections from the content tree as structured data."""
-        sections_list = [
-            section.to_dict() for section in self.content.get_all_sections()
-        ]
-        sections_by_id = {
-            section.id: section.to_dict() for section in self.content.get_all_sections()
-        }
-        return {"sections": sections_list, "sections_by_id": sections_by_id}
-
-    def get_blocks(self, section_id: str | None = None) -> BlocksData:
-        """Get blocks from a specific section or all sections as structured data."""
-        if section_id:
-            section = self.content.get_section(section_id)
-            if section:
-                return {"blocks": [b.to_dict() for b in section.blocks]}
-            return {"blocks": []}
-
-        blocks = []
-        for section in self.content.get_all_sections():
-            blocks.extend([b.to_dict() for b in section.blocks])
-        return {"blocks": blocks}
-
-    # Serialization
-    def to_dict(self) -> MarkdownDataDict:
-        """Convert to JSON-serializable dictionary."""
-        return {"frontmatter": self.frontmatter, "content": self.content.to_dict()}
