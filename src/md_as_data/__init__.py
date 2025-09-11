@@ -15,6 +15,7 @@ from .models import (
     # Enums
     BlockType,
     ContentTree,
+    FrontmatterPolicy,  # Backwards compatibility alias
     FrontmatterProperties,
     FrontmatterValue,
     HeadingLevel,
@@ -22,8 +23,9 @@ from .models import (
     # Core classes
     Section,
     SectionData,
-    SectionPolicy,
+    SectionPolicy,  # Backwards compatibility alias
     SectionsData,
+    UpdatePolicy,  # Unified policy enum
 )
 
 # Advanced processing (for custom handlers and extensions)
@@ -45,7 +47,9 @@ __all__ = [
     # Enums
     "BlockType",
     "HeadingLevel",
-    "SectionPolicy",
+    "UpdatePolicy",
+    "SectionPolicy",  # Backwards compatibility
+    "FrontmatterPolicy",  # Backwards compatibility
     # Type definitions for advanced usage
     "BlockData",
     "SectionData",

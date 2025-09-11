@@ -35,12 +35,18 @@ class HeadingLevel(IntEnum):
     H6 = 6
 
 
-class SectionPolicy(Enum):
-    """Policies for section mutation operations."""
+class UpdatePolicy(Enum):
+    """Unified policies for both frontmatter and section update operations."""
 
-    REPLACE = "replace"  # Replace entire section and all subsections
-    UPDATE = "update"  # Replace blocks and specified subsections, keep others
-    APPEND = "append"  # Add content without removing existing content
+    REPLACE = "replace"  # Replace entire value/section
+    UPDATE = "update"  # Update/merge content while preserving structure (sections: keep subsections)
+    MERGE = "merge"  # Smart merge with existing value (frontmatter: merge arrays/objects, sections: same as update)
+    APPEND = "append"  # Append to existing value/content
+
+
+# Backwards compatibility aliases
+SectionPolicy = UpdatePolicy
+FrontmatterPolicy = UpdatePolicy
 
 
 # Public input type for external API (simplified)

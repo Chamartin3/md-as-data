@@ -24,7 +24,7 @@ dev = [
 ]
 
 [project.scripts]
-mdasdata = "cli.cli:main"
+mdasdata = "cli.main:main_cli"
 
 [tool.ruff]
 line-length = 88

@@ -15,34 +15,44 @@ from .models import (
     ParsedMarkdownData,
     Section,
     SectionData,
-    SectionPolicy,
+    SectionPolicy,  # Alias for UpdatePolicy
     SectionsData,
+    UpdatePolicy,
 )
 from .processor import MarkdownProcessor
 
 
 class UpdateInputDict(TypedDict, total=False):
     """Base for dict to define data for update."""
+
     policy: SectionPolicy
+
 
 class InputDictSectionContent(UpdateInputDict):
     """Section input using markdown text."""
+
     content: str
 
+
 class InputDictSectionData(SectionData, UpdateInputDict):
-    """Structured section input (when section fields are provided 
-    additionally to policy """
+    """Structured section input (when section fields are provided
+    additionally to policy"""
+
     pass
+
 
 class InputDictSectionObject(UpdateInputDict):
     """Explicit section input (when Section object is provided)"""
+
     section: Section
+
 
 InputDataDictOptions = (
     InputDictSectionContent | InputDictSectionData | InputDictSectionObject
 )
 
 TDict = TypeVar("TDict", bound=InputDataDictOptions)
+
 
 def validate_typed_dict(
     data: InputDataDictOptions | dict[str, Any], typed_dict_class: type[TDict]
@@ -55,6 +65,7 @@ def validate_typed_dict(
 
 
 InputDataOptions = FrontmatterValue | Section | InputDataDictOptions
+
 
 class UpdateOperationTypes(Enum):
     """Public enum for operation types."""
@@ -78,6 +89,9 @@ class UpdateOperationTypes(Enum):
                 return cls.PROPERTY
         if isinstance(value, int | float | bool | datetime):
             # Primitive types, treat as frontmatter
+            return cls.PROPERTY
+        if isinstance(value, list):
+            # Lists are valid frontmatter values (e.g., tags, authors)
             return cls.PROPERTY
         if isinstance(value, dict):
             return cls._classify_dict_input(value)
@@ -186,7 +200,14 @@ class UpdateOperation:
             return cast(FrontmatterValue, value)
 
         if self.type == self.TYPES.SECTION:
-            return cast(Section, value)
+            # If value is already a Section, return it
+            if isinstance(value, Section):
+                return value
+            # Otherwise, treat it as text and convert to Section
+            if isinstance(value, str):
+                return self._get_section_from_text(value, path)
+            else:
+                raise ValueError(f"Cannot convert {type(value)} to Section")
 
         if self.type in self.text_inputs:
             if self == self.TYPES.SECTION_TEXT_STRUCTURED:
@@ -335,12 +356,16 @@ class MarkdownData:
             raise AttributeError("Cannot modify private attribute")
 
         content_paths = self._content.paths
-        property_list = list(self._content.keys)
+        property_list = list(self.frontmatter.keys())
 
-        if name in property_list:
-            operation_type = UpdateOperationTypes.PROPERTY
-        elif Section.is_path(name) and name in content_paths:
+        # Check if it's an existing section path/id first
+        if name in content_paths:
             operation_type = UpdateOperationTypes.SECTION
+        elif self.get_section(name) is not None:
+            # Section exists by ID, treat as section operation
+            operation_type = UpdateOperationTypes.SECTION
+        elif name in property_list:
+            operation_type = UpdateOperationTypes.PROPERTY
         else:
             operation_type = UpdateOperationTypes.infer_from_value(value)
         return UpdateOperation(
@@ -361,7 +386,7 @@ class MarkdownData:
     def _set_content(self, operation: UpdateOperation) -> None:
         """Set section content with policy support."""
         try:
-            section = cast(Section, operation.data)
+            section = cast(Section, operation.prepared_data)
             section_path = operation.target
             policy = operation.section_policy
             # Delegate to ContentTree for structural operation
@@ -394,27 +419,75 @@ class MarkdownData:
         self, section_id_or_path: str, section_contents: InputDataOptions
     ) -> None:
         """Replace the entire content of a section."""
-        operation = self.infer_operation_type(
-            section_id_or_path,
-            section_contents,
+        # Force section operation type since this method is explicitly for sections
+        operation = UpdateOperation(
+            target=section_id_or_path,
+            type=UpdateOperationTypes.SECTION_TEXT,
+            data=section_contents,
             policy=SectionPolicy.REPLACE,
         )
-        if not operation.is_content_operation:
-            raise ValueError("replace_section requires a section-related input")
         self._set_content(operation)
 
     def update_section(
         self, section_id_or_path: str, section_contents: InputDataOptions
     ) -> None:
         """Update (merge) content of a section."""
-        operation = self.infer_operation_type(
-            section_id_or_path,
-            section_contents,
+        # Force section operation type since this method is explicitly for sections
+        operation = UpdateOperation(
+            target=section_id_or_path,
+            type=UpdateOperationTypes.SECTION_TEXT,
+            data=section_contents,
             policy=SectionPolicy.UPDATE,
         )
-        if not operation.is_content_operation:
-            raise ValueError("update_section requires a section-related input")
         self._set_content(operation)
+
+    def update_frontmatter(
+        self,
+        properties: dict[str, FrontmatterPropertyValue],
+        policy: UpdatePolicy = UpdatePolicy.MERGE
+    ) -> None:
+        """Update multiple frontmatter properties in batch with specified policy."""
+        for key, value in properties.items():
+            self._update_frontmatter_property(key, value, policy)
+
+    def _update_frontmatter_property(
+        self,
+        key: str,
+        new_value: FrontmatterPropertyValue,
+        policy: UpdatePolicy
+    ) -> None:
+        """Update a single frontmatter property with policy support."""
+        existing_value = self._frontmatter.get(key)
+
+        if policy == UpdatePolicy.REPLACE or existing_value is None:
+            # Replace or set new property
+            self._frontmatter[key] = new_value
+        elif policy in (UpdatePolicy.MERGE, UpdatePolicy.UPDATE):
+            # Smart merge based on value types (MERGE and UPDATE behave the same for frontmatter)
+            if isinstance(existing_value, list) and isinstance(new_value, list):
+                # Merge lists, avoiding duplicates
+                merged_list = existing_value.copy()
+                for item in new_value:
+                    if item not in merged_list:
+                        merged_list.append(item)
+                self._frontmatter[key] = merged_list
+            elif isinstance(existing_value, dict) and isinstance(new_value, dict):
+                # Merge dictionaries
+                merged_dict = existing_value.copy()
+                merged_dict.update(new_value)
+                self._frontmatter[key] = merged_dict
+            else:
+                # For non-mergeable types, replace
+                self._frontmatter[key] = new_value
+        elif policy == UpdatePolicy.APPEND:
+            # Append to existing value (arrays only)
+            if isinstance(existing_value, list) and isinstance(new_value, list):
+                self._frontmatter[key] = existing_value + new_value
+            elif isinstance(existing_value, list):
+                self._frontmatter[key] = existing_value + [new_value]
+            else:
+                # If not a list, treat as replace
+                self._frontmatter[key] = new_value
 
     # Serialization
     def to_dict(self) -> MarkdownDataDict:

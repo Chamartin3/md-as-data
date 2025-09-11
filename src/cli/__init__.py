@@ -1,5 +1,5 @@
 """CLI package for markdown-as-data."""
 
-from .cli import main
+from .main import main_cli
 
-__all__ = ["main"]
+__all__ = ["main_cli"]

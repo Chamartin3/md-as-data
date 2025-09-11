@@ -1,14 +1,27 @@
 ---
-title: "Complex Document Example"
-author: "Jane Smith"
-date: "2024-01-20"
-version: "2.1.0"
-status: "published"
-tags: ["complex", "demo", "advanced"]
-categories: ["documentation", "examples"]
-description: "A comprehensive example showcasing various markdown features"
+title: Updated Document Title
+author: Jane Smith
+date: '2024-01-20'
+version: 2.0.0
+status: published
+tags:
+- python
+- markdown
+- updated
+- cli
+- mutation
+categories:
+- documentation
+- examples
+description: A comprehensive example showcasing various markdown features
+another: 55
+last_updated: '2024-01-25'
+authors:
+- Jane Doe
+- John Smith
+test_cli_mutation: CLI test successful
+cli_test: working
 ---
-
 # Complex Document Structure
 
 This document demonstrates various markdown features and nested structures.
@@ -20,24 +33,9 @@ This document demonstrates various markdown features and nested structures.
 - Code Examples
 - Data Structures
 - Conclusion
+## Scope
 
-## Introduction
-
-Welcome to this comprehensive markdown example. This document showcases:
-
-- Multiple heading levels
-- Various content types
-- Complex nesting
-- Rich metadata
-
-### Purpose
-
-The purpose of this document is to test the parsing capabilities.
-
-### Scope
-
-This covers most common markdown patterns.
-
+a new scope property
 ## Features Overview
 
 Here are the key features demonstrated:
@@ -56,20 +54,11 @@ The parser handles:
 - Multiple paragraph blocks
 - Code blocks with language specification
 - List processing
-
 ## Code Examples
 
 ### Python Code
 
-```python
-class MarkdownParser:
-    def __init__(self):
-        self.content = ""
-
-    def parse(self, text):
-        return self.process(text)
-```
-
+Updated Python code example content.
 ### JavaScript Code
 
 ```javascript
@@ -77,8 +66,38 @@ function parseMarkdown(content) {
     const parser = new MarkdownParser();
     return parser.parse(content);
 }
-```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
 ### Shell Commands
 
 ```bash
@@ -88,8 +107,38 @@ pip install python-frontmatter
 
 # Run the parser
 python -m md_as_data parse document.md
-```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
 ## Data Structures
 
 The following data structures are used:
@@ -101,28 +150,23 @@ The following data structures are used:
 
 ### Implementation Notes
 
-> This is a blockquote explaining the implementation approach.
->
-> The parser uses a token-based approach for maximum flexibility.
-
+> This is a blockquote explaining the implementation approach. The parser uses a token-based approach for maximum flexibility.
 ## Advanced Features
 
 ### Nested Lists
 
 1. First level item
-   - Nested bullet point
-   - Another nested item
-     - Even deeper nesting
-2. Second level item
-   - More nesting
-3. Final item
-
+2. Nested bullet point
+3. Another nested item
+4. Even deeper nesting
+5. Second level item
+6. More nesting
+7. Final item
 ### Complex Paragraphs
 
 This paragraph contains multiple sentences. It demonstrates how the parser handles longer text blocks with various punctuation marks, numbers like 123, and special characters like @#$%.
 
 Another paragraph follows immediately after.
-
 ## Performance Considerations
 
 The parser is designed for:
@@ -130,20 +174,20 @@ The parser is designed for:
 - Fast processing of large documents
 - Memory-efficient tree structures
 - Scalable content organization
+## Introduction
 
+This introduction has been completely replaced with new content.
+
+It demonstrates the REPLACE policy for section updates.
 # Final Notes
+
 ## Conclusion
 
-This complex example demonstrates the full capabilities of the markdown-as-data parser.
+This should work since conclusion is unique
 
 ### Summary
 
-Key achievements:
-
-- Comprehensive parsing
-- Structured data output
-- Maintainable architecture
-
+Updated summary content with improved achievements
 ### Next Steps
 
 Future enhancements may include:
@@ -152,7 +196,22 @@ Future enhancements may include:
 2. Extended metadata
 3. Custom block types
 4. Export formats
-
 ### References
 
 For more information, see the project documentation.
+### Extra
+
+Updated extra information with more details
+
+#### Extra
+
+Information about additional resources
+#### Second Additional Info
+
+here is more
+#### Additional Info
+
+sub info\n ####SUB \n replaced
+## Getting Started
+
+This content updates the getting_started section while preserving any subsections.

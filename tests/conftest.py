@@ -150,3 +150,102 @@ def temp_dir():
     """Create a temporary directory for tests."""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
+
+
+@pytest.fixture
+def complex_frontmatter() -> dict[str, Any]:
+    """Complex frontmatter with various data types for mutation testing."""
+    return {
+        "title": "Complex Test Document",
+        "author": "Test Author",
+        "tags": ["python", "testing", "markdown"],
+        "published": False,
+        "version": 1.0,
+        "metadata": {
+            "source": "test_suite",
+            "priority": "high",
+            "config": {
+                "database": "localhost",
+                "port": 5432
+            }
+        },
+        "contributors": ["Alice", "Bob"],
+        "dates": {
+            "created": "2023-01-01",
+            "modified": "2023-12-01"
+        }
+    }
+
+
+@pytest.fixture
+def document_with_duplicates() -> str:
+    """Markdown document with duplicate section names for ambiguity testing."""
+    return """# Main Document
+
+Main document content.
+
+## Introduction
+
+First introduction.
+
+### Overview
+
+First overview section.
+
+## Configuration
+
+Main configuration section.
+
+### Introduction
+
+Second introduction - duplicate name!
+
+### Overview
+
+Second overview - another duplicate!
+
+## Examples
+
+Examples section.
+
+### Code Examples
+
+Code examples here.
+
+## Testing
+
+Testing section.
+
+### Code Examples
+
+More code examples - duplicate name again!
+"""
+
+
+@pytest.fixture
+def multi_level_document() -> str:
+    """Document with all heading levels for level preservation testing."""
+    return """# Level 1 Main Title
+
+Level 1 content here.
+
+## Level 2 Section Title
+
+Level 2 content here.
+
+### Level 3 Subsection Title
+
+Level 3 content here.
+
+#### Level 4 Sub-subsection Title
+
+Level 4 content here.
+
+##### Level 5 Deep Section Title
+
+Level 5 content here.
+
+###### Level 6 Maximum Depth Title
+
+Level 6 content here.
+"""
