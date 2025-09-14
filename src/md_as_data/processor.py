@@ -455,3 +455,63 @@ class MarkdownProcessor:
     def unregister_handler(self, token_type: TokenType) -> None:
         """Remove a token handler."""
         self.token_handlers.pop(token_type, None)
+
+    @staticmethod
+    def format_content_with_heading(
+        content: str,
+        level: int,
+        title: str,
+        preserve_existing_heading: bool = True,
+    ) -> str:
+        """Format content with appropriate heading level.
+
+        Args:
+            content: Content text (may or may not include heading)
+            level: Heading level (1-6)
+            title: Section title to use
+            preserve_existing_heading: If True, don't add heading if
+                content starts with one
+
+        Returns:
+            Formatted content with heading
+        """
+        stripped_content = content.strip()
+        if preserve_existing_heading and stripped_content.startswith("#"):
+            return content
+
+        heading_marker = "#" * level
+        formatted = f"{heading_marker} {title}\n\n{stripped_content}"
+        return formatted
+
+    @staticmethod
+    def preserve_section_structure(content: str, existing_section: Section) -> str:
+        """Preserve section structure when updating content.
+
+        Ensures that content maintains the correct heading level
+        and title from the existing section.
+
+        Args:
+            content: New content to add
+            existing_section: Existing section to preserve structure from
+
+        Returns:
+            Content with preserved section heading structure
+        """
+        return MarkdownProcessor.format_content_with_heading(
+            content=content,
+            level=existing_section.level,
+            title=existing_section.title,
+            preserve_existing_heading=True,
+        )
+
+    @staticmethod
+    def content_has_heading(content: str) -> bool:
+        """Check if content string starts with a markdown heading.
+
+        Args:
+            content: Content to check
+
+        Returns:
+            True if content starts with heading marker (#)
+        """
+        return content.strip().startswith("#")

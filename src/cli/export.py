@@ -7,6 +7,8 @@ import typer
 from .utils import (
     MarkdownPrinter,
     OptionalOutputFileArg,
+    OutputFormatArg,
+    OutputFormatChoice,
     PrettyFlag,
     cli_context,
 )
@@ -69,9 +71,7 @@ def export_yaml(
 
 @app.command("frontmatter")
 def export_frontmatter(
-    format_type: Annotated[
-        str, typer.Option("--format", "-f", help="Output format: json, yaml")
-    ] = "json",
+    format_type: OutputFormatArg = OutputFormatChoice.JSON,
     output: OptionalOutputFileArg = None,
 ) -> None:
     """Export only frontmatter properties."""
@@ -84,7 +84,8 @@ def export_frontmatter(
         printer.print_warning("No frontmatter properties found")
         return
 
-    if format_type.lower() == "yaml":
+    # Use enum comparison instead of string comparison
+    if format_type == OutputFormatChoice.YAML:
         try:
             import yaml
 

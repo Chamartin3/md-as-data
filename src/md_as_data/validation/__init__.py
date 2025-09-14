@@ -4,6 +4,7 @@ Provides schema-based validation for markdown documents including
 frontmatter properties, section structure, and content types.
 """
 
+from .input_parser import InputParser, ParseResult
 from .schema_generator import SchemaGenerator, generate_schema
 from .schema_models import (
     DocumentSchema,
@@ -21,6 +22,8 @@ from .schema_models import (
 from .schema_validator import SchemaValidator
 
 __all__ = [
+    "InputParser",
+    "ParseResult",
     "SchemaValidator",
     "SchemaGenerator",
     "generate_schema",

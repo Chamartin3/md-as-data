@@ -7,7 +7,9 @@ from typing import Annotated
 
 import typer
 
-from md_as_data.models import SectionPolicy, UpdatePolicy
+from md_as_data.models import SectionPolicy
+from md_as_data.processor import MarkdownProcessor
+from md_as_data.validation import InputParser
 
 from .utils import MarkdownPrinter, cli_context, section_policy_converter
 
@@ -33,19 +35,17 @@ def set_property(
     printer = MarkdownPrinter(cli_context.console)
 
     try:
-        # Parse value
+        # Parse value using core functionality
         if json_value:
+            # Force JSON parsing
             try:
-                parsed_value = json.loads(value)
-            except json.JSONDecodeError as e:
-                printer.print_error(f"Invalid JSON value: {e}")
+                parsed_value = InputParser.parse_value_strict(value)
+            except ValueError as e:
+                printer.print_error(str(e))
                 raise typer.Exit(1)
         else:
-            # Try to parse as JSON, fallback to string
-            try:
-                parsed_value = json.loads(value)
-            except json.JSONDecodeError:
-                parsed_value = value
+            # Auto-parse with fallback to string
+            parsed_value = InputParser.parse_value_auto(value)
 
         # Set property
         setattr(md_file.mddata, key, parsed_value)
@@ -95,10 +95,13 @@ def set_section(
                     new_level = parent_section.level + 1
                     section_title = new_section_id.replace("_", " ").title()
 
-                    if not content.strip().startswith("#"):
-                        # Add heading with appropriate level
-                        heading_marker = "#" * new_level
-                        content = f"{heading_marker} {section_title}\n\n{content}"
+                    if not MarkdownProcessor.content_has_heading(content):
+                        content = MarkdownProcessor.format_content_with_heading(
+                            content=content,
+                            level=new_level,
+                            title=section_title,
+                            preserve_existing_heading=False,
+                        )
 
                     # Create the section - the underlying system
                     # will handle the creation
@@ -149,11 +152,10 @@ def set_section(
                     existing_section = matching_sections[0]
 
         # Preserve heading level if content doesn't start with heading
-        if existing_section and not content.strip().startswith("#"):
-            # If content doesn't start with a heading, add the appropriate heading level
-            heading_marker = "#" * existing_section.level
-            section_title = existing_section.title
-            content = f"{heading_marker} {section_title}\n\n{content}"
+        if existing_section and not MarkdownProcessor.content_has_heading(content):
+            content = MarkdownProcessor.preserve_section_structure(
+                content=content, existing_section=existing_section
+            )
 
         # Apply section operation
         if section_policy == SectionPolicy.APPEND:
@@ -211,14 +213,29 @@ def from_json(
             print(json.dumps(json_data, indent=2))
             return
 
-        # Apply changes
-        changes_count = _apply_json_changes(md_file.mddata, json_data, printer)
+        # Apply changes using core functionality
+        result = md_file.mddata.apply_batch_changes(json_data)
 
-        if changes_count > 0:
+        # Report warnings
+        for warning in result["warnings"]:
+            printer.print_warning(warning)
+
+        # Report errors
+        for error in result["errors"]:
+            printer.print_error(error)
+
+        if result["success"] and result["changes_count"] > 0:
             md_file.save()
-            printer.print_success(f"Applied {changes_count} changes from {source}")
-        else:
+            printer.print_success(
+                f"Applied {result['changes_count']} changes from {source} "
+                f"({result['frontmatter_changes']} frontmatter, "
+                f"{result['section_changes']} sections)"
+            )
+        elif result["changes_count"] == 0:
             printer.print_warning("No valid changes found in JSON data")
+        else:
+            printer.print_error("Batch operation failed")
+            raise typer.Exit(1)
 
     except Exception as e:
         printer.print_error(str(e))
@@ -249,62 +266,3 @@ def remove_property(
     except Exception as e:
         printer.print_error(str(e))
         raise typer.Exit(1)
-
-
-def _apply_json_changes(doc, json_data: dict, printer: MarkdownPrinter) -> int:
-    """Apply JSON data changes to document."""
-    changes = 0
-
-    # Apply frontmatter updates
-    if "frontmatter" in json_data:
-        frontmatter_data = json_data["frontmatter"]
-
-        # Check if frontmatter policy is specified
-        frontmatter_policy_str = json_data.get("frontmatter_policy", "merge").upper()
-        try:
-            frontmatter_policy = UpdatePolicy[frontmatter_policy_str]
-        except KeyError:
-            printer.print_warning(
-                f"Invalid frontmatter policy '{frontmatter_policy_str}', using MERGE"
-            )
-            frontmatter_policy = UpdatePolicy.MERGE
-
-        # Apply frontmatter updates with policy
-        doc.update_frontmatter(frontmatter_data, frontmatter_policy)
-
-        # Report each property that was updated
-        policy_name = frontmatter_policy.value
-        for key in frontmatter_data.keys():
-            printer.print_success(f"Set property '{key}' from JSON ({policy_name})")
-            changes += 1
-
-    # Apply section updates
-    if "sections" in json_data:
-        for section_update in json_data["sections"]:
-            section_id = section_update["id"]
-            content = section_update["content"]
-            policy_str = section_update.get("policy", "update").upper()
-
-            try:
-                policy_enum = SectionPolicy[policy_str]
-            except KeyError:
-                printer.print_warning(
-                    f"Invalid policy '{policy_str}' for "
-                    f"section '{section_id}', using UPDATE"
-                )
-                policy_enum = SectionPolicy.UPDATE
-
-            if policy_enum == SectionPolicy.APPEND:
-                doc.append_to_section(section_id, content)
-                action = "appended to"
-            elif policy_enum == SectionPolicy.REPLACE:
-                doc.replace_section(section_id, content)
-                action = "replaced"
-            else:
-                doc.update_section(section_id, content)
-                action = "updated"
-
-            printer.print_success(f"Section '{section_id}' {action} from JSON")
-            changes += 1
-
-    return changes

@@ -4,7 +4,9 @@ from typing import Annotated
 
 import typer
 
-from .utils import MarkdownPrinter, cli_context
+from md_as_data.models import BlockType
+
+from .utils import BlockTypeArg, MarkdownPrinter, cli_context
 
 app = typer.Typer(
     name="info", help="Query information about markdown files", no_args_is_help=False
@@ -77,14 +79,7 @@ def sections(
 
 @app.command("blocks")
 def blocks(
-    block_type: Annotated[
-        str | None,
-        typer.Option(
-            "--type",
-            "-t",
-            help="Filter by block type (paragraph, list, code_block, etc.)",
-        ),
-    ] = None,
+    block_type: BlockTypeArg = None,
     limit: Annotated[
         int | None, typer.Option("--limit", "-l", help="Limit number of blocks shown")
     ] = None,
@@ -96,9 +91,9 @@ def blocks(
     blocks_data = md_file.mddata.get_blocks()
     all_blocks = blocks_data["blocks"]
 
-    # Filter by type if specified
+    # Filter by type if specified - use enum value comparison
     if block_type:
-        filtered_blocks = [b for b in all_blocks if b["type"] == block_type]
+        filtered_blocks = [b for b in all_blocks if b["type"] == block_type.value]
     else:
         filtered_blocks = all_blocks
 
@@ -107,5 +102,9 @@ def blocks(
 
     printer = MarkdownPrinter(cli_context.console)
     printer.print_document_blocks(
-        file_path, display_blocks, block_type, limit, len(all_blocks)
+        file_path,
+        display_blocks,
+        block_type.value if block_type else None,
+        limit,
+        len(all_blocks),
     )

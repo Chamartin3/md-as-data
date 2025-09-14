@@ -8,6 +8,7 @@ from .types import (
     MarkdownFileArg,
     OptionalOutputFileArg,
     OutputFormatArg,
+    OutputFormatChoice,
     PrettyFlag,
     SectionPolicyArg,
     VerboseFlag,
@@ -31,4 +32,5 @@ __all__ = [
     "BlockTypeArg",
     "HeadingLevelArg",
     "OutputFormatArg",
+    "OutputFormatChoice",
 ]

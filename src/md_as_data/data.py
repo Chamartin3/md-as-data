@@ -48,6 +48,33 @@ class InputDictSectionObject(UpdateInputDict):
     section: Section
 
 
+class SectionUpdate(TypedDict, total=False):
+    """Structure for section update in batch operation."""
+
+    id: str  # Required
+    content: str  # Required
+    policy: str | SectionPolicy  # Optional, defaults to UPDATE
+
+
+class BatchChanges(TypedDict, total=False):
+    """Structure for batch changes to document."""
+
+    frontmatter: dict[str, FrontmatterPropertyValue]
+    frontmatter_policy: str | UpdatePolicy
+    sections: list[SectionUpdate]
+
+
+class BatchOperationResult(TypedDict):
+    """Result of batch operation."""
+
+    success: bool
+    changes_count: int
+    frontmatter_changes: int
+    section_changes: int
+    errors: list[str]
+    warnings: list[str]
+
+
 InputDataDictOptions = (
     InputDictSectionContent | InputDictSectionData | InputDictSectionObject
 )
@@ -521,6 +548,109 @@ class MarkdownData:
             else:
                 # If not a list, treat as replace
                 self._frontmatter[key] = new_value
+
+    def apply_batch_changes(self, changes: BatchChanges) -> BatchOperationResult:
+        """Apply multiple changes from structured data.
+
+        Args:
+            changes: Dictionary containing frontmatter and section updates
+
+        Returns:
+            BatchOperationResult with success status and details
+        """
+        result: BatchOperationResult = {
+            "success": True,
+            "changes_count": 0,
+            "frontmatter_changes": 0,
+            "section_changes": 0,
+            "errors": [],
+            "warnings": [],
+        }
+
+        # Apply frontmatter updates
+        if "frontmatter" in changes:
+            frontmatter_data = changes["frontmatter"]
+            policy = self._parse_update_policy(
+                changes.get("frontmatter_policy", "merge"), result["warnings"]
+            )
+
+            try:
+                self.update_frontmatter(frontmatter_data, policy)
+                result["frontmatter_changes"] = len(frontmatter_data)
+                result["changes_count"] += len(frontmatter_data)
+            except Exception as e:
+                result["errors"].append(f"Frontmatter update failed: {e}")
+                result["success"] = False
+
+        # Apply section updates
+        if "sections" in changes:
+            for section_update in changes["sections"]:
+                section_id = "unknown"
+                try:
+                    section_id = section_update["id"]
+                    content = section_update["content"]
+                    policy = self._parse_section_policy(
+                        section_update.get("policy", "update"), result["warnings"]
+                    )
+
+                    if policy == SectionPolicy.APPEND:
+                        self.append_to_section(section_id, content)
+                    elif policy == SectionPolicy.REPLACE:
+                        self.replace_section(section_id, content)
+                    else:
+                        self.update_section(section_id, content)
+
+                    result["section_changes"] += 1
+                    result["changes_count"] += 1
+                except Exception as e:
+                    result["errors"].append(
+                        f"Section update failed for '{section_id}': {e}"
+                    )
+                    result["success"] = False
+
+        return result
+
+    def _parse_update_policy(
+        self, policy_value: str | UpdatePolicy, warnings: list[str]
+    ) -> UpdatePolicy:
+        """Parse policy value to UpdatePolicy enum.
+
+        Args:
+            policy_value: Policy as string or enum
+            warnings: List to append warnings to
+
+        Returns:
+            UpdatePolicy enum value
+        """
+        if isinstance(policy_value, UpdatePolicy):
+            return policy_value
+
+        try:
+            return UpdatePolicy[policy_value.upper()]
+        except (KeyError, AttributeError):
+            warnings.append(f"Invalid policy '{policy_value}', using MERGE")
+            return UpdatePolicy.MERGE
+
+    def _parse_section_policy(
+        self, policy_value: str | SectionPolicy, warnings: list[str]
+    ) -> SectionPolicy:
+        """Parse policy value to SectionPolicy enum.
+
+        Args:
+            policy_value: Policy as string or enum
+            warnings: List to append warnings to
+
+        Returns:
+            SectionPolicy enum value
+        """
+        if isinstance(policy_value, SectionPolicy):
+            return policy_value
+
+        try:
+            return SectionPolicy[policy_value.upper()]
+        except (KeyError, AttributeError):
+            warnings.append(f"Invalid policy '{policy_value}', using UPDATE")
+            return SectionPolicy.UPDATE
 
     # Serialization
     def to_dict(self) -> MarkdownDataDict:

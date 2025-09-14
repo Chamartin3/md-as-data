@@ -10,41 +10,6 @@ from click import Choice
 from md_as_data.models import BlockType, HeadingLevel, SectionPolicy
 
 
-class SectionPolicyChoice(str, Enum):
-    """Section policy choices for CLI."""
-
-    REPLACE = "replace"
-    UPDATE = "update"
-    APPEND = "append"
-    R = "r"  # Short form
-    U = "u"  # Short form
-    A = "a"  # Short form
-
-
-class BlockTypeChoice(str, Enum):
-    """Block type choices for CLI."""
-
-    PARAGRAPH = "paragraph"
-    LIST = "list"
-    ORDERED_LIST = "ordered_list"
-    CODE_BLOCK = "code_block"
-    LINK = "link"
-    IMAGE = "image"
-    TABLE = "table"
-    BLOCKQUOTE = "blockquote"
-
-
-class HeadingLevelChoice(str, Enum):
-    """Heading level choices for CLI."""
-
-    H1 = "1"
-    H2 = "2"
-    H3 = "3"
-    H4 = "4"
-    H5 = "5"
-    H6 = "6"
-
-
 class OutputFormatChoice(str, Enum):
     """Output format choices for CLI."""
 
@@ -53,24 +18,26 @@ class OutputFormatChoice(str, Enum):
 
 
 def section_policy_converter(value: str) -> SectionPolicy:
-    """Convert CLI input to SectionPolicy enum."""
-    policy_map = {
-        "replace": SectionPolicy.REPLACE,
+    """Convert CLI input to SectionPolicy enum, supporting shorthand aliases."""
+    # Map shorthand to full enum values
+    shorthand_map = {
         "r": SectionPolicy.REPLACE,
-        "update": SectionPolicy.UPDATE,
         "u": SectionPolicy.UPDATE,
-        "append": SectionPolicy.APPEND,
         "a": SectionPolicy.APPEND,
     }
 
-    policy_key = value.lower()
-    if policy_key not in policy_map:
-        valid_options = list(policy_map.keys())
+    # Check if value is shorthand
+    if value.lower() in shorthand_map:
+        return shorthand_map[value.lower()]
+
+    # Try to convert to enum directly
+    try:
+        return SectionPolicy(value.lower())
+    except ValueError:
+        valid_options = [p.value for p in SectionPolicy] + list(shorthand_map.keys())
         raise typer.BadParameter(
             f"Invalid policy '{value}'. Valid options: {valid_options}"
         )
-
-    return policy_map[policy_key]
 
 
 def block_type_converter(value: str) -> BlockType:
@@ -125,35 +92,28 @@ SectionPolicyArg = Annotated[
 ]
 
 BlockTypeArg = Annotated[
-    BlockType,
+    BlockType | None,
     typer.Option(
         "--type",
         "-t",
         help="Block type filter",
-        callback=lambda ctx, param, value: block_type_converter(value)
-        if value
-        else None,
     ),
 ]
 
 HeadingLevelArg = Annotated[
-    HeadingLevel,
+    HeadingLevel | None,
     typer.Option(
         "--level",
         "-l",
         help="Heading level (1-6)",
-        callback=lambda ctx, param, value: heading_level_converter(value)
-        if value
-        else None,
     ),
 ]
 
 OutputFormatArg = Annotated[
-    str,
+    OutputFormatChoice,
     typer.Option(
         "--format",
         "-f",
-        help="Output format",
-        click_type=Choice(["json", "yaml"], case_sensitive=False),
+        help="Output format (json or yaml)",
     ),
 ]

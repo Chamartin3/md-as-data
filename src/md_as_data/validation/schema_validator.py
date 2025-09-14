@@ -352,10 +352,12 @@ class SchemaValidator:
                                 f"Block type '{block.type.value}' "
                                 f"not allowed in section"
                             ),
-                            "expected": str([
-                                t.value if isinstance(t, BlockType) else t
-                                for t in allowed_types
-                            ]),
+                            "expected": str(
+                                [
+                                    t.value if isinstance(t, BlockType) else t
+                                    for t in allowed_types
+                                ]
+                            ),
                             "actual": block.type.value,
                         }
                     )
