@@ -193,6 +193,6 @@ site/
 
 # Project-specific exclusions
 workdir/
-*.md
+# *.md
 !README.md
 !CLAUDE.md

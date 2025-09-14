@@ -1,0 +1,874 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true,
+      "default": "Updated Document Title",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "author": {
+      "type": "str",
+      "required": true,
+      "default": "Jane Smith",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "date": {
+      "type": "str",
+      "required": true,
+      "default": "2024-01-20",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "version": {
+      "type": "str",
+      "required": true,
+      "default": "2.0.0",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "status": {
+      "type": "str",
+      "required": true,
+      "default": "published",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "tags": {
+      "type": "list",
+      "required": true,
+      "default": [
+        "python",
+        "markdown",
+        "updated",
+        "cli",
+        "mutation"
+      ]
+    },
+    "categories": {
+      "type": "list",
+      "required": true,
+      "default": [
+        "documentation",
+        "examples"
+      ]
+    },
+    "description": {
+      "type": "str",
+      "required": true,
+      "default": "A comprehensive example showcasing various markdown features",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 120,
+          "message": "Value length must not exceed 120"
+        }
+      ]
+    },
+    "another": {
+      "type": "int",
+      "required": true,
+      "default": 55,
+      "validations": [
+        {
+          "type": "min_value",
+          "value": 0,
+          "message": "Value must be non-negative"
+        },
+        {
+          "type": "max_value",
+          "value": 110,
+          "message": "Value must not exceed 110"
+        }
+      ]
+    },
+    "last_updated": {
+      "type": "str",
+      "required": true,
+      "default": "2024-01-25",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "authors": {
+      "type": "list",
+      "required": true,
+      "default": [
+        "Jane Doe",
+        "John Smith"
+      ]
+    },
+    "test_cli_mutation": {
+      "type": "str",
+      "required": true,
+      "default": "CLI test successful",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "cli_test": {
+      "type": "str",
+      "required": true,
+      "default": "working",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    }
+  },
+  "sections": {
+    "complex_document_structure": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "table_of_contents": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.LIST"
+            ]
+          }
+        },
+        "scope": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "features_overview": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.ORDERED_LIST",
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "technical_details": {
+              "validation": {
+                "required": false,
+                "max_blocks": 2,
+                "min_blocks": 2,
+                "allowed_content": [
+                  "BlockType.LIST",
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            }
+          }
+        },
+        "code_examples": {
+          "validation": {
+            "required": false,
+            "max_blocks": 0,
+            "min_blocks": 0,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "python_code": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "javascript_code": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.CODE_BLOCK"
+                ]
+              }
+            },
+            "shell_commands": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.CODE_BLOCK"
+                ]
+              }
+            }
+          }
+        },
+        "data_structures": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.LIST",
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "implementation_notes": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.BLOCKQUOTE"
+                ]
+              }
+            }
+          }
+        },
+        "advanced_features": {
+          "validation": {
+            "required": false,
+            "max_blocks": 0,
+            "min_blocks": 0,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "nested_lists": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.ORDERED_LIST"
+                ]
+              }
+            },
+            "complex_paragraphs": {
+              "validation": {
+                "required": false,
+                "max_blocks": 2,
+                "min_blocks": 2,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            }
+          }
+        },
+        "performance_considerations": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.LIST",
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "introduction": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        }
+      }
+    },
+    "table_of_contents": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.LIST"
+        ]
+      }
+    },
+    "scope": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "features_overview": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.ORDERED_LIST",
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "technical_details": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.LIST",
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        }
+      }
+    },
+    "technical_details": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.LIST",
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "code_examples": {
+      "validation": {
+        "required": false,
+        "max_blocks": 0,
+        "min_blocks": 0,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "python_code": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "javascript_code": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.CODE_BLOCK"
+            ]
+          }
+        },
+        "shell_commands": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.CODE_BLOCK"
+            ]
+          }
+        }
+      }
+    },
+    "python_code": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "javascript_code": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.CODE_BLOCK"
+        ]
+      }
+    },
+    "shell_commands": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.CODE_BLOCK"
+        ]
+      }
+    },
+    "data_structures": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.LIST",
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "implementation_notes": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.BLOCKQUOTE"
+            ]
+          }
+        }
+      }
+    },
+    "implementation_notes": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.BLOCKQUOTE"
+        ]
+      }
+    },
+    "advanced_features": {
+      "validation": {
+        "required": false,
+        "max_blocks": 0,
+        "min_blocks": 0,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "nested_lists": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.ORDERED_LIST"
+            ]
+          }
+        },
+        "complex_paragraphs": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        }
+      }
+    },
+    "nested_lists": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.ORDERED_LIST"
+        ]
+      }
+    },
+    "complex_paragraphs": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "performance_considerations": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.LIST",
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "introduction": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "final_notes": {
+      "validation": {
+        "required": false,
+        "max_blocks": 0,
+        "min_blocks": 0,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "conclusion": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "summary": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "next_steps": {
+              "validation": {
+                "required": false,
+                "max_blocks": 2,
+                "min_blocks": 2,
+                "allowed_content": [
+                  "BlockType.ORDERED_LIST",
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "references": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "extra": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              },
+              "subsections": {
+                "extra": {
+                  "validation": {
+                    "required": false,
+                    "max_blocks": 1,
+                    "min_blocks": 1,
+                    "allowed_content": [
+                      "BlockType.PARAGRAPH"
+                    ]
+                  }
+                },
+                "second_additional_info": {
+                  "validation": {
+                    "required": false,
+                    "max_blocks": 1,
+                    "min_blocks": 1,
+                    "allowed_content": [
+                      "BlockType.PARAGRAPH"
+                    ]
+                  }
+                },
+                "additional_info": {
+                  "validation": {
+                    "required": false,
+                    "max_blocks": 1,
+                    "min_blocks": 1,
+                    "allowed_content": [
+                      "BlockType.PARAGRAPH"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "getting_started": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        }
+      }
+    },
+    "conclusion": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "summary": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "next_steps": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.ORDERED_LIST",
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "references": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        },
+        "extra": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "extra": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "second_additional_info": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            },
+            "additional_info": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "next_steps": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.ORDERED_LIST",
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "references": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "extra": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "second_additional_info": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "additional_info": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "getting_started": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    }
+  },
+  "validation_level": "warnings"
+}

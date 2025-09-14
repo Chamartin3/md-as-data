@@ -1,0 +1,315 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true,
+      "default": "New Title",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "author": {
+      "type": "str",
+      "required": true,
+      "default": "John Doe",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "date": {
+      "type": "str",
+      "required": true,
+      "default": "2024-01-15",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "tags": {
+      "type": "str",
+      "required": true,
+      "default": "hello workd",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "version": {
+      "type": "str",
+      "required": true,
+      "default": "4.0.0",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "description": {
+      "type": "str",
+      "required": true,
+      "default": "Updated description",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "status": {
+      "type": "str",
+      "required": true,
+      "default": "published",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "published_date": {
+      "type": "str",
+      "required": true,
+      "default": "2024-01-25",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "test_prop": {
+      "type": "str",
+      "required": true,
+      "default": "test_value",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    },
+    "test_key": {
+      "type": "str",
+      "required": true,
+      "default": "test_value",
+      "validations": [
+        {
+          "type": "min_length",
+          "value": 1,
+          "message": "Value must not be empty"
+        },
+        {
+          "type": "max_length",
+          "value": 100,
+          "message": "Value length must not exceed 100"
+        }
+      ]
+    }
+  },
+  "sections": {
+    "introduction": {
+      "validation": {
+        "required": false,
+        "max_blocks": 4,
+        "min_blocks": 4,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "overview": {
+      "validation": {
+        "required": false,
+        "max_blocks": 0,
+        "min_blocks": 0,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "code_example": {
+          "validation": {
+            "required": false,
+            "max_blocks": 2,
+            "min_blocks": 2,
+            "allowed_content": [
+              "BlockType.PARAGRAPH",
+              "BlockType.CODE_BLOCK"
+            ]
+          }
+        },
+        "conclusion": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          },
+          "subsections": {
+            "final_notes": {
+              "validation": {
+                "required": false,
+                "max_blocks": 1,
+                "min_blocks": 1,
+                "allowed_content": [
+                  "BlockType.PARAGRAPH"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "code_example": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.PARAGRAPH",
+          "BlockType.CODE_BLOCK"
+        ]
+      }
+    },
+    "conclusion": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      },
+      "subsections": {
+        "final_notes": {
+          "validation": {
+            "required": false,
+            "max_blocks": 1,
+            "min_blocks": 1,
+            "allowed_content": [
+              "BlockType.PARAGRAPH"
+            ]
+          }
+        }
+      }
+    },
+    "final_notes": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "new_section": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "another_section": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "otra_vez_amando_a_mauricio": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    },
+    "test_section": {
+      "validation": {
+        "required": false,
+        "max_blocks": 1,
+        "min_blocks": 1,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    }
+  },
+  "validation_level": "warnings"
+}

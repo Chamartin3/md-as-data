@@ -3,17 +3,17 @@
 from .context import CLIContext, cli_context
 from .printers import MarkdownPrinter
 from .types import (
-    section_policy_converter,
-    block_type_converter,
-    heading_level_converter,
-    MarkdownFileArg,
-    OptionalOutputFileArg,
-    VerboseFlag,
-    PrettyFlag,
-    SectionPolicyArg,
     BlockTypeArg,
     HeadingLevelArg,
+    MarkdownFileArg,
+    OptionalOutputFileArg,
     OutputFormatArg,
+    PrettyFlag,
+    SectionPolicyArg,
+    VerboseFlag,
+    block_type_converter,
+    heading_level_converter,
+    section_policy_converter,
 )
 
 __all__ = [

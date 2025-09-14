@@ -20,6 +20,7 @@ from .models import (
     UpdatePolicy,
 )
 from .processor import MarkdownProcessor
+from .validation import DocumentSchema, SchemaValidator, ValidationLevel
 
 
 class UpdateInputDict(TypedDict, total=False):
@@ -258,11 +259,19 @@ class MarkdownData:
 
     _content: ContentTree
     _frontmatter: FrontmatterProperties
+    _schema: DocumentSchema | None
+    _validator: SchemaValidator | None
 
-    def __init__(self, parsed_data: ParsedMarkdownData) -> None:
+    def __init__(
+        self, parsed_data: ParsedMarkdownData, schema: DocumentSchema | None = None
+    ) -> None:
         # Use object.__setattr__ to bypass our custom __setattr__ during init
         object.__setattr__(self, "_frontmatter", parsed_data["frontmatter"])
         object.__setattr__(self, "_content", parsed_data["content"])
+        object.__setattr__(self, "_schema", schema)
+        object.__setattr__(
+            self, "_validator", SchemaValidator(schema) if schema else None
+        )
 
     def __repr__(self) -> str:
         return (
@@ -375,6 +384,28 @@ class MarkdownData:
             policy=policy,
         )
 
+    # Validation methods
+
+    def _validate_changes(self) -> None:
+        """Validate document against schema if validator is configured."""
+        if self._validator:
+            result = self._validator.validate(self)
+            if not result["valid"]:
+                # Get validation level from schema
+                validation_level = ValidationLevel(
+                    self._schema.get("validation_level", ValidationLevel.WARNINGS)
+                    if self._schema
+                    else ValidationLevel.WARNINGS
+                )
+
+                if validation_level == ValidationLevel.STRICT:
+                    # Raise error with all validation issues
+                    error_messages = [issue["message"] for issue in result["errors"]]
+                    raise ValueError(
+                        f"Schema validation failed: {'; '.join(error_messages)}"
+                    )
+                # For WARNINGS level, validation errors are collected but not raised
+
     # Mutation methods
 
     def _set_frontmatter_property(self, operation: UpdateOperation) -> None:
@@ -382,6 +413,8 @@ class MarkdownData:
         key = operation.target
         value = cast(FrontmatterValue, operation.data)
         self._frontmatter[key] = value
+        # Validate after mutation if schema is configured
+        self._validate_changes()
 
     def _set_content(self, operation: UpdateOperation) -> None:
         """Set section content with policy support."""
@@ -391,6 +424,8 @@ class MarkdownData:
             policy = operation.section_policy
             # Delegate to ContentTree for structural operation
             self._content.set_section(section, section_path, policy)
+            # Validate after mutation if schema is configured
+            self._validate_changes()
 
         except (ValueError, TypeError) as e:
             raise ValueError(f"Failed to set section '{operation}': {e}") from e
@@ -444,17 +479,14 @@ class MarkdownData:
     def update_frontmatter(
         self,
         properties: dict[str, FrontmatterPropertyValue],
-        policy: UpdatePolicy = UpdatePolicy.MERGE
+        policy: UpdatePolicy = UpdatePolicy.MERGE,
     ) -> None:
         """Update multiple frontmatter properties in batch with specified policy."""
         for key, value in properties.items():
             self._update_frontmatter_property(key, value, policy)
 
     def _update_frontmatter_property(
-        self,
-        key: str,
-        new_value: FrontmatterPropertyValue,
-        policy: UpdatePolicy
+        self, key: str, new_value: FrontmatterPropertyValue, policy: UpdatePolicy
     ) -> None:
         """Update a single frontmatter property with policy support."""
         existing_value = self._frontmatter.get(key)
@@ -463,7 +495,8 @@ class MarkdownData:
             # Replace or set new property
             self._frontmatter[key] = new_value
         elif policy in (UpdatePolicy.MERGE, UpdatePolicy.UPDATE):
-            # Smart merge based on value types (MERGE and UPDATE behave the same for frontmatter)
+            # Smart merge based on value types
+            # (MERGE and UPDATE behave the same for frontmatter)
             if isinstance(existing_value, list) and isinstance(new_value, list):
                 # Merge lists, avoiding duplicates
                 merged_list = existing_value.copy()

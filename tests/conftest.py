@@ -164,16 +164,10 @@ def complex_frontmatter() -> dict[str, Any]:
         "metadata": {
             "source": "test_suite",
             "priority": "high",
-            "config": {
-                "database": "localhost",
-                "port": 5432
-            }
+            "config": {"database": "localhost", "port": 5432},
         },
         "contributors": ["Alice", "Bob"],
-        "dates": {
-            "created": "2023-01-01",
-            "modified": "2023-12-01"
-        }
+        "dates": {"created": "2023-01-01", "modified": "2023-12-01"},
     }
 
 

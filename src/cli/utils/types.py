@@ -2,12 +2,12 @@
 
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from click import Choice
 
-from md_as_data.models import SectionPolicy, BlockType, HeadingLevel
+from md_as_data.models import BlockType, HeadingLevel, SectionPolicy
 
 
 class SectionPolicyChoice(str, Enum):
@@ -102,7 +102,7 @@ def heading_level_converter(value: str) -> HeadingLevel:
 MarkdownFileArg = Annotated[Path, typer.Argument(help="Path to the markdown file")]
 
 OptionalOutputFileArg = Annotated[
-    Optional[Path], typer.Option("--output", "-o", help="Output file (default: stdout)")
+    Path | None, typer.Option("--output", "-o", help="Output file (default: stdout)")
 ]
 
 VerboseFlag = Annotated[

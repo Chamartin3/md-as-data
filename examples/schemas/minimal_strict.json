@@ -1,0 +1,16 @@
+{
+  "frontmatter": {},
+  "sections": {
+    "just_a_title": {
+      "validation": {
+        "required": false,
+        "max_blocks": 2,
+        "min_blocks": 2,
+        "allowed_content": [
+          "BlockType.PARAGRAPH"
+        ]
+      }
+    }
+  },
+  "validation_level": "warnings"
+}

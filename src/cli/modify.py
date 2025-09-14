@@ -8,7 +8,8 @@ from typing import Annotated
 import typer
 
 from md_as_data.models import SectionPolicy, UpdatePolicy
-from .utils import cli_context, MarkdownPrinter, section_policy_converter
+
+from .utils import MarkdownPrinter, cli_context, section_policy_converter
 
 app = typer.Typer(
     name="modify",
@@ -75,7 +76,8 @@ def set_section(
         # Parse policy using converter
         section_policy = section_policy_converter(policy)
 
-        # Validate section path and handle both existing sections and new subsection creation
+        # Validate section path and handle both existing sections
+        # and new subsection creation
         existing_section = md_file.mddata.get_section(section_id)
 
         if not existing_section:
@@ -93,17 +95,23 @@ def set_section(
                     new_level = parent_section.level + 1
                     section_title = new_section_id.replace("_", " ").title()
 
-                    if not content.strip().startswith('#'):
+                    if not content.strip().startswith("#"):
                         # Add heading with appropriate level
-                        heading_marker = '#' * new_level
+                        heading_marker = "#" * new_level
                         content = f"{heading_marker} {section_title}\n\n{content}"
 
-                    # Create the section - the underlying system will handle the creation
+                    # Create the section - the underlying system
+                    # will handle the creation
                     existing_section = None  # Signal that this is a new section
                 else:
                     # Parent doesn't exist - invalid path
-                    printer.print_error(f"Parent path '{parent_path}' not found for new section '{section_id}'.")
-                    printer.print_error("Use 'info sections --paths' to see available section paths.")
+                    printer.print_error(
+                        f"Parent path '{parent_path}' not found "
+                        f"for new section '{section_id}'."
+                    )
+                    printer.print_error(
+                        "Use 'info sections --paths' to see available section paths."
+                    )
                     raise typer.Exit(1)
             else:
                 # Check for ambiguous single-word references
@@ -119,22 +127,31 @@ def set_section(
                         matching_sections.append(section)
 
                 if len(matching_sections) > 1:
-                    printer.print_error(f"Ambiguous section reference '{section_id}' matches multiple sections:")
+                    printer.print_error(
+                        f"Ambiguous section reference '{section_id}' "
+                        f"matches multiple sections:"
+                    )
                     for section in matching_sections:
-                        printer.print_error(f"  - {section.title} (path: {section.path})")
-                    printer.print_error("Please use a unique path to identify the section.")
+                        printer.print_error(
+                            f"  - {section.title} (path: {section.path})"
+                        )
+                    printer.print_error(
+                        "Please use a unique path to identify the section."
+                    )
                     raise typer.Exit(1)
                 elif len(matching_sections) == 0:
                     printer.print_error(f"Section '{section_id}' not found.")
-                    printer.print_error("Use 'info sections --paths' to see available section paths.")
+                    printer.print_error(
+                        "Use 'info sections --paths' to see available section paths."
+                    )
                     raise typer.Exit(1)
                 else:
                     existing_section = matching_sections[0]
 
         # Preserve heading level if content doesn't start with heading
-        if existing_section and not content.strip().startswith('#'):
+        if existing_section and not content.strip().startswith("#"):
             # If content doesn't start with a heading, add the appropriate heading level
-            heading_marker = '#' * existing_section.level
+            heading_marker = "#" * existing_section.level
             section_title = existing_section.title
             content = f"{heading_marker} {section_title}\n\n{content}"
 
@@ -183,7 +200,7 @@ def from_json(
                 raise typer.Exit(1)
 
             try:
-                with open(source_path, "r") as f:
+                with open(source_path) as f:
                     json_data = json.load(f)
             except json.JSONDecodeError as e:
                 printer.print_error(f"Invalid JSON in file '{source}': {e}")
@@ -272,7 +289,8 @@ def _apply_json_changes(doc, json_data: dict, printer: MarkdownPrinter) -> int:
                 policy_enum = SectionPolicy[policy_str]
             except KeyError:
                 printer.print_warning(
-                    f"Invalid policy '{policy_str}' for section '{section_id}', using UPDATE"
+                    f"Invalid policy '{policy_str}' for "
+                    f"section '{section_id}', using UPDATE"
                 )
                 policy_enum = SectionPolicy.UPDATE
 

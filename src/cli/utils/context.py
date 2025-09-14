@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -16,8 +15,8 @@ class CLIContext:
 
     def __init__(self):
         self.console = Console()
-        self.file_path: Optional[Path] = None
-        self.md_file: Optional[MarkdownFile] = None
+        self.file_path: Path | None = None
+        self.md_file: MarkdownFile | None = None
         self.verbose: bool = False
 
     def load_file(self, file_path: Path) -> None:

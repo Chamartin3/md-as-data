@@ -2,13 +2,13 @@
 
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.syntax import Syntax
 
-from md_as_data import MarkdownFile, MarkdownData, MarkdownDataDict
-from md_as_data.models import Section, BlockData
+from md_as_data import MarkdownDataDict, MarkdownFile
+from md_as_data.models import BlockData, Section
 
 
 class MarkdownPrinter:
@@ -49,7 +49,7 @@ class MarkdownPrinter:
                 self.console.print(f"  • {btype}: {count}")
 
     def print_frontmatter_properties(
-        self, file_path: Path, frontmatter: Dict[str, Any], verbose: bool = False
+        self, file_path: Path, frontmatter: dict[str, Any], verbose: bool = False
     ) -> None:
         """Print all frontmatter properties."""
         self.console.print(f"\n[bold]Frontmatter Properties in {file_path}:[/bold]")
@@ -71,7 +71,7 @@ class MarkdownPrinter:
     def print_document_sections(
         self,
         file_path: Path,
-        sections: List[Section],
+        sections: list[Section],
         show_blocks: bool = False,
         show_paths: bool = True,
     ) -> None:
@@ -85,17 +85,20 @@ class MarkdownPrinter:
 
                     if show_paths:
                         # Extract the last part of the path (the ID) for highlighting
-                        path_parts = section.path.split('.')
+                        path_parts = section.path.split(".")
                         if len(path_parts) > 1:
-                            path_prefix = '.'.join(path_parts[:-1]) + '.'
+                            path_prefix = ".".join(path_parts[:-1]) + "."
                             highlighted_id = path_parts[-1]
-                            path_display = f"{path_prefix}[bold cyan]{highlighted_id}[/bold cyan]"
+                            path_display = (
+                                f"{path_prefix}[bold cyan]{highlighted_id}[/bold cyan]"
+                            )
                         else:
                             path_display = f"[bold cyan]{section.path}[/bold cyan]"
 
                         # Compact format: Title(path)
                         self.console.print(
-                            f"{indent}[green]#{section.level}[/green] {section.title} ({path_display})"
+                            f"{indent}[green]#{section.level}[/green] "
+                            f"{section.title} ({path_display})"
                         )
                     else:
                         self.console.print(
@@ -112,10 +115,10 @@ class MarkdownPrinter:
     def print_document_blocks(
         self,
         file_path: Path,
-        blocks: List[BlockData],
-        block_type: Optional[str] = None,
-        limit: Optional[int] = None,
-        total_count: Optional[int] = None,
+        blocks: list[BlockData],
+        block_type: str | None = None,
+        limit: int | None = None,
+        total_count: int | None = None,
     ) -> None:
         """Print document blocks with optional filtering."""
         if block_type:

@@ -1,0 +1,164 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true
+    },
+    "author": {
+      "type": "str",
+      "required": true
+    },
+    "date": {
+      "type": "str",
+      "required": true
+    },
+    "version": {
+      "type": "str",
+      "required": true
+    },
+    "status": {
+      "type": "str",
+      "required": true
+    },
+    "tags": {
+      "type": "list",
+      "required": true
+    },
+    "categories": {
+      "type": "list",
+      "required": true
+    },
+    "description": {
+      "type": "str",
+      "required": true
+    },
+    "another": {
+      "type": "int",
+      "required": true
+    },
+    "last_updated": {
+      "type": "str",
+      "required": true
+    },
+    "authors": {
+      "type": "list",
+      "required": true
+    },
+    "test_cli_mutation": {
+      "type": "str",
+      "required": true
+    },
+    "cli_test": {
+      "type": "str",
+      "required": true
+    }
+  },
+  "sections": {
+    "complex_document_structure": {
+      "subsections": {
+        "table_of_contents": {},
+        "scope": {},
+        "features_overview": {
+          "subsections": {
+            "technical_details": {}
+          }
+        },
+        "code_examples": {
+          "subsections": {
+            "python_code": {},
+            "javascript_code": {},
+            "shell_commands": {}
+          }
+        },
+        "data_structures": {
+          "subsections": {
+            "implementation_notes": {}
+          }
+        },
+        "advanced_features": {
+          "subsections": {
+            "nested_lists": {},
+            "complex_paragraphs": {}
+          }
+        },
+        "performance_considerations": {},
+        "introduction": {}
+      }
+    },
+    "table_of_contents": {},
+    "scope": {},
+    "features_overview": {
+      "subsections": {
+        "technical_details": {}
+      }
+    },
+    "technical_details": {},
+    "code_examples": {
+      "subsections": {
+        "python_code": {},
+        "javascript_code": {},
+        "shell_commands": {}
+      }
+    },
+    "python_code": {},
+    "javascript_code": {},
+    "shell_commands": {},
+    "data_structures": {
+      "subsections": {
+        "implementation_notes": {}
+      }
+    },
+    "implementation_notes": {},
+    "advanced_features": {
+      "subsections": {
+        "nested_lists": {},
+        "complex_paragraphs": {}
+      }
+    },
+    "nested_lists": {},
+    "complex_paragraphs": {},
+    "performance_considerations": {},
+    "introduction": {},
+    "final_notes": {
+      "subsections": {
+        "conclusion": {
+          "subsections": {
+            "summary": {},
+            "next_steps": {},
+            "references": {},
+            "extra": {
+              "subsections": {
+                "extra": {},
+                "second_additional_info": {},
+                "additional_info": {}
+              }
+            }
+          }
+        },
+        "getting_started": {}
+      }
+    },
+    "conclusion": {
+      "subsections": {
+        "summary": {},
+        "next_steps": {},
+        "references": {},
+        "extra": {
+          "subsections": {
+            "extra": {},
+            "second_additional_info": {},
+            "additional_info": {}
+          }
+        }
+      }
+    },
+    "summary": {},
+    "next_steps": {},
+    "references": {},
+    "extra": {},
+    "second_additional_info": {},
+    "additional_info": {},
+    "getting_started": {}
+  },
+  "validation_level": "warnings"
+}

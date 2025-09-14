@@ -39,8 +39,8 @@ class UpdatePolicy(Enum):
     """Unified policies for both frontmatter and section update operations."""
 
     REPLACE = "replace"  # Replace entire value/section
-    UPDATE = "update"  # Update/merge content while preserving structure (sections: keep subsections)
-    MERGE = "merge"  # Smart merge with existing value (frontmatter: merge arrays/objects, sections: same as update)
+    UPDATE = "update"  # Update/merge while preserving structure
+    MERGE = "merge"  # Smart merge with existing value
     APPEND = "append"  # Append to existing value/content
 
 

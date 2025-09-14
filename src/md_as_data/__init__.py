@@ -35,6 +35,16 @@ from .processor import (
 )
 from .source import MarkdownFile
 
+# Schema validation functionality
+from .validation import (
+    DocumentSchema,
+    PropertySchema,
+    SchemaValidator,
+    SectionSchema,
+    ValidationLevel,
+    generate_schema,
+)
+
 # Public API - Core functionality
 __all__ = [
     # Main entry points
@@ -60,6 +70,13 @@ __all__ = [
     # Processing
     "MarkdownProcessor",
     "TokenType",
+    # Schema validation
+    "DocumentSchema",
+    "PropertySchema",
+    "SectionSchema",
+    "SchemaValidator",
+    "ValidationLevel",
+    "generate_schema",
 ]
 
 # Version info

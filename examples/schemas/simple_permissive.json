@@ -1,0 +1,69 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true
+    },
+    "author": {
+      "type": "str",
+      "required": true
+    },
+    "date": {
+      "type": "str",
+      "required": true
+    },
+    "tags": {
+      "type": "str",
+      "required": true
+    },
+    "version": {
+      "type": "str",
+      "required": true
+    },
+    "description": {
+      "type": "str",
+      "required": true
+    },
+    "status": {
+      "type": "str",
+      "required": true
+    },
+    "published_date": {
+      "type": "str",
+      "required": true
+    },
+    "test_prop": {
+      "type": "str",
+      "required": true
+    },
+    "test_key": {
+      "type": "str",
+      "required": true
+    }
+  },
+  "sections": {
+    "introduction": {},
+    "overview": {
+      "subsections": {
+        "code_example": {},
+        "conclusion": {
+          "subsections": {
+            "final_notes": {}
+          }
+        }
+      }
+    },
+    "code_example": {},
+    "conclusion": {
+      "subsections": {
+        "final_notes": {}
+      }
+    },
+    "final_notes": {},
+    "new_section": {},
+    "another_section": {},
+    "otra_vez_amando_a_mauricio": {},
+    "test_section": {}
+  },
+  "validation_level": "warnings"
+}

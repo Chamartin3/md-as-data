@@ -6,8 +6,8 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from . import export, info, modify
-from .utils import MarkdownFileArg, cli_context
+from . import export, info, modify, schema
+from .utils import cli_context
 
 app = typer.Typer(
     name="mdasdata",
@@ -20,6 +20,7 @@ app = typer.Typer(
 app.add_typer(info.app, name="info")
 app.add_typer(modify.app, name="modify")
 app.add_typer(export.app, name="export")
+app.add_typer(schema.app, name="schema")
 
 console = Console()
 
@@ -80,16 +81,24 @@ def help_examples() -> None:
     console.print("\n[bold]mdasdata - Markdown as Structured Data[/bold]\n")
 
     console.print("[bold]INFORMATION COMMANDS[/bold]")
-    console.print("  mdasdata document.md info                   # Quick file overview (default)")
-    console.print("  mdasdata document.md info --verbose         # Detailed file overview")
-    console.print("  mdasdata document.md info properties -v     # List all frontmatter")
+    console.print(
+        "  mdasdata document.md info                   # Quick file overview (default)"
+    )
+    console.print(
+        "  mdasdata document.md info --verbose         # Detailed file overview"
+    )
+    console.print(
+        "  mdasdata document.md info properties -v     # List all frontmatter"
+    )
     console.print(
         "  mdasdata document.md info sections -b -p    # Sections with blocks/paths"
     )
     console.print(
         "  mdasdata document.md info blocks -t paragraph -l 5  # Filter blocks"
     )
-    console.print("  mdasdata document.md quick-info             # Same as info (shortcut)\n")
+    console.print(
+        "  mdasdata document.md quick-info             # Same as info (shortcut)\n"
+    )
 
     console.print("[bold]MODIFICATION COMMANDS[/bold]")
     console.print("  mdasdata modify set-property document.md title 'New Title'")
@@ -103,6 +112,14 @@ def help_examples() -> None:
     console.print("  mdasdata export json document.md --pretty")
     console.print("  mdasdata export yaml document.md -o data.yaml")
     console.print("  mdasdata export frontmatter document.md -f json\n")
+
+    console.print("[bold]SCHEMA COMMANDS[/bold]")
+    console.print("  mdasdata document.md schema generate --output schema.json")
+    console.print(
+        "  mdasdata document.md schema generate -m strict  # Strict inference"
+    )
+    console.print("  mdasdata document.md schema validate schema.json")
+    console.print("  mdasdata document.md schema info schema.json\n")
 
     console.print("[bold]POLICY OPTIONS (for sections)[/bold]")
     console.print("  -p replace (r)    # Replace entire section")

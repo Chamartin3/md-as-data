@@ -20,7 +20,10 @@ def info_default(
     ctx: typer.Context,
     verbose: VerboseOpt = False,
 ) -> None:
-    """Show file information. Default: quick summary. Use --help to see other commands."""
+    """Show file information. Default: quick summary.
+
+    Use --help to see other commands.
+    """
     if ctx.invoked_subcommand is None:
         # No subcommand specified, run quick-info (summary)
         cli_context.verbose = verbose
