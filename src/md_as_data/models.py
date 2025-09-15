@@ -3,11 +3,27 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import TypedDict, TypeVar, Union
+from typing import NamedTuple, TypedDict, TypeVar, Union
 
 # Type aliases for frontmatter properties
 FrontmatterValue = str | int | float | bool | list[str]
 FrontmatterProperties = dict[str, FrontmatterValue]
+
+
+class SectionQuery(NamedTuple):
+    """Result of section query operation."""
+
+    section: Section | None  # The found section (None if not found/ambiguous)
+    matched: list[Section]  # All matched sections (for ambiguity detection)
+    parent: Section | None  # Parent section if creating new subsection
+    error: str | None  # Error message if operation failed
+
+
+class BlocksQuery(NamedTuple):
+    """Result of blocks query with metadata."""
+
+    blocks: list[Block]  # Filtered blocks
+    total: int  # Total blocks before filtering
 
 
 class BlockType(Enum):
@@ -616,6 +632,146 @@ class ContentTree:
                 return None
 
         return current_section if current_section != self.root else None
+
+    def query_section(self, section_id: str) -> SectionQuery:
+        """Comprehensive section query with validation and ambiguity detection.
+
+        This method handles ALL section lookup scenarios:
+        1. Exact match (ID or path) -> returns section
+        2. New subsection path (parent.child where child doesn't exist)
+           -> returns parent
+        3. Fuzzy match (partial ID) -> returns matches or ambiguity error
+        4. Not found -> returns error
+
+        Args:
+            section_id: Section identifier - can be:
+                       - Simple ID: "introduction"
+                       - Full path: "introduction.overview"
+                       - Partial match: "intro" (fuzzy)
+
+        Returns:
+            SectionQuery with one of these states:
+
+            SUCCESS - Exact match:
+                section=<found>, matched=[<found>], parent=None, error=None
+
+            SUCCESS - Creating new subsection:
+                section=None, matched=[], parent=<parent>, error=None
+
+            SUCCESS - Single fuzzy match:
+                section=<found>, matched=[<found>], parent=None, error=None
+
+            ERROR - Ambiguous:
+                section=None, matched=[<s1>, <s2>, ...], parent=None,
+                error="Ambiguous..."
+
+            ERROR - Not found:
+                section=None, matched=[], parent=None, error="Section ... not found"
+
+            ERROR - Invalid parent path:
+                section=None, matched=[], parent=None, error="Parent path ... not found"
+        """
+        # STEP 1: Try exact lookup first (most common case)
+        exact = self.get_section(section_id)
+        if exact:
+            return SectionQuery(section=exact, matched=[exact], parent=None, error=None)
+
+        # STEP 2: Check if it's a path for creating new subsection
+        # Pattern: "parent.child" or "parent.sub.child" where child doesn't exist
+        if Section.SECTION_PATH_SEPARATOR in section_id:
+            parts = section_id.split(Section.SECTION_PATH_SEPARATOR)
+            parent_path = Section.SECTION_PATH_SEPARATOR.join(parts[:-1])
+
+            parent = self.get_section(parent_path)
+            if parent:
+                # Parent exists - this is valid new subsection creation
+                return SectionQuery(section=None, matched=[], parent=parent, error=None)
+            # Parent doesn't exist - invalid path
+            return SectionQuery(
+                section=None,
+                matched=[],
+                parent=None,
+                error=(
+                    f"Parent path '{parent_path}' not found "
+                    f"for new section '{section_id}'"
+                ),
+            )
+
+        # STEP 3: Try fuzzy matching (partial ID match)
+        # This allows users to type "intro" instead of "introduction"
+        matches = []
+        for section in self._sections_index.values():
+            # Match if section_id equals the section ID
+            if section.id == section_id:
+                matches.append(section)
+            # OR if section_id appears anywhere in the section's full path
+            elif section_id in section.path:
+                matches.append(section)
+
+        # STEP 4: Interpret fuzzy match results
+        if len(matches) == 0:
+            # No matches found
+            return SectionQuery(
+                section=None,
+                matched=[],
+                parent=None,
+                error=f"Section '{section_id}' not found",
+            )
+        if len(matches) == 1:
+            # Single fuzzy match - treat as success
+            return SectionQuery(
+                section=matches[0], matched=matches, parent=None, error=None
+            )
+        # Multiple matches - ambiguous reference
+        paths = [s.path for s in matches]
+        return SectionQuery(
+            section=None,
+            matched=matches,
+            parent=None,
+            error=f"Ambiguous reference '{section_id}' matches: {', '.join(paths)}",
+        )
+
+    def find_blocks(
+        self, block_type: str | None = None, section_id: str | None = None
+    ) -> BlocksQuery:
+        """Find blocks with flexible filtering.
+
+        Args:
+            block_type: Filter by block type (e.g., 'paragraph')
+            section_id: Filter blocks from specific section
+
+        Returns:
+            BlocksQuery with filtered blocks and metadata
+        """
+        # Get base blocks
+        if section_id:
+            section = self.get_section(section_id)
+            all_blocks = list(section.blocks) if section else []
+        else:
+            all_blocks = self.get_all_blocks()
+
+        total = len(all_blocks)
+
+        # Apply type filter
+        if block_type:
+            filtered = [b for b in all_blocks if b.type.value == block_type]
+        else:
+            filtered = all_blocks
+
+        return BlocksQuery(blocks=filtered, total=total)
+
+    def get_parent_section(self, path: str) -> Section | None:
+        """Get parent section from dot-separated path."""
+        if Section.SECTION_PATH_SEPARATOR not in path:
+            return None
+        parts = path.split(Section.SECTION_PATH_SEPARATOR)
+        parent_path = Section.SECTION_PATH_SEPARATOR.join(parts[:-1])
+        return self.get_section(parent_path)
+
+    @staticmethod
+    def generate_section_title(section_id: str) -> str:
+        """Generate human-readable title from section ID."""
+        return section_id.replace("_", " ").title()
 
     # Serialization
     def to_dict(self) -> SectionData:

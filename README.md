@@ -11,8 +11,11 @@ Transform markdown documents into structured data that you can navigate, query, 
 - **Parse markdown into structured objects** with hierarchical sections and typed blocks
 - **Dynamic property access** to frontmatter and content sections
 - **Path-based navigation** through document structure (`section.subsection.item`)
+- **Query sections** with validation, fuzzy matching, and ambiguity detection
+- **Filter blocks** by type and section with unified API
+- **High-level setters** for sections with automatic heading generation
 - **Round-trip serialization** - markdown → objects → markdown (preserves formatting)
-- **Type-safe API** with comprehensive TypedDict interfaces
+- **Type-safe API** with comprehensive TypedDict interfaces and NamedTuple returns
 - **Extensible parser** with custom token handlers
 - **CLI and SDK** interfaces for different use cases
 
@@ -49,7 +52,20 @@ intro = doc.content.introduction
 overview = doc.content.introduction.overview
 conclusion = doc.content.get_section('conclusion.summary')
 
-# Modify and save
+# Query sections with validation
+query = doc.query_section('introduction')
+if query.section:
+    print(f"Found: {query.section.title}")
+
+# Filter blocks
+paragraphs = doc.find_blocks(block_type='paragraph')
+intro_blocks = doc.find_blocks(section_id='introduction')
+
+# Modify content with high-level setter
+doc.set_section('updates', 'New update content')
+doc.set_section('intro.overview', 'Overview text')  # Creates subsection
+
+# Modify frontmatter and save
 doc.status = "published"
 doc.last_modified = "2024-01-20"
 file.save()

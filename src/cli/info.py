@@ -4,8 +4,6 @@ from typing import Annotated
 
 import typer
 
-from md_as_data.models import BlockType
-
 from .utils import BlockTypeArg, MarkdownPrinter, cli_context
 
 app = typer.Typer(
@@ -88,23 +86,19 @@ def blocks(
     file_path = cli_context.file_path
     md_file = cli_context.ensure_file_loaded()
 
-    blocks_data = md_file.mddata.get_blocks()
-    all_blocks = blocks_data["blocks"]
+    # Get filtered blocks using core functionality
+    result = md_file.mddata.find_blocks(
+        block_type=block_type.value if block_type else None
+    )
 
-    # Filter by type if specified - use enum value comparison
-    if block_type:
-        filtered_blocks = [b for b in all_blocks if b["type"] == block_type.value]
-    else:
-        filtered_blocks = all_blocks
-
-    # Apply limit if specified
-    display_blocks = filtered_blocks[:limit] if limit else filtered_blocks
+    # Apply CLI-level limit if specified (presentation layer concern)
+    display_blocks = result.blocks[:limit] if limit else result.blocks
 
     printer = MarkdownPrinter(cli_context.console)
     printer.print_document_blocks(
         file_path,
-        display_blocks,
+        [b.to_dict() for b in display_blocks],
         block_type.value if block_type else None,
         limit,
-        len(all_blocks),
+        result.total,
     )

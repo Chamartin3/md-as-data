@@ -1,7 +1,5 @@
 """Export subcommands for outputting markdown file data in various formats."""
 
-from typing import Annotated
-
 import typer
 
 from .utils import (

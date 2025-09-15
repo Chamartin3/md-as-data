@@ -8,7 +8,6 @@ from typing import Annotated
 import typer
 
 from md_as_data.models import SectionPolicy
-from md_as_data.processor import MarkdownProcessor
 from md_as_data.validation import InputParser
 
 from .utils import MarkdownPrinter, cli_context, section_policy_converter
@@ -76,99 +75,37 @@ def set_section(
         # Parse policy using converter
         section_policy = section_policy_converter(policy)
 
-        # Validate section path and handle both existing sections
-        # and new subsection creation
-        existing_section = md_file.mddata.get_section(section_id)
+        # Query section with comprehensive validation
+        query = md_file.mddata.query_section(section_id)
 
-        if not existing_section:
-            # Check if it's a path for creating a new subsection
-            if "." in section_id:
-                # Split path to check if parent exists
-                path_parts = section_id.split(".")
-                parent_path = ".".join(path_parts[:-1])
-                new_section_id = path_parts[-1]
-
-                parent_section = md_file.mddata.get_section(parent_path)
-                if parent_section:
-                    # Parent exists - this is a new subsection creation
-                    # Calculate the new section level (parent level + 1)
-                    new_level = parent_section.level + 1
-                    section_title = new_section_id.replace("_", " ").title()
-
-                    if not MarkdownProcessor.content_has_heading(content):
-                        content = MarkdownProcessor.format_content_with_heading(
-                            content=content,
-                            level=new_level,
-                            title=section_title,
-                            preserve_existing_heading=False,
-                        )
-
-                    # Create the section - the underlying system
-                    # will handle the creation
-                    existing_section = None  # Signal that this is a new section
-                else:
-                    # Parent doesn't exist - invalid path
-                    printer.print_error(
-                        f"Parent path '{parent_path}' not found "
-                        f"for new section '{section_id}'."
-                    )
-                    printer.print_error(
-                        "Use 'info sections --paths' to see available section paths."
-                    )
-                    raise typer.Exit(1)
+        if query.error:
+            printer.print_error(query.error)
+            if len(query.matched) > 1:
+                # Ambiguous reference
+                printer.print_error("Matching sections:")
+                for section in query.matched:
+                    printer.print_error(f"  - {section.title} (path: {section.path})")
+                printer.print_error("Please use a unique path to identify the section.")
             else:
-                # Check for ambiguous single-word references
-                all_sections = md_file.mddata.get_all_sections()
-                matching_sections = []
+                printer.print_error(
+                    "Use 'info sections --paths' to see available section paths."
+                )
+            raise typer.Exit(1)
 
-                for section in all_sections:
-                    # Check if section_id matches exactly the section ID
-                    if section.id == section_id:
-                        matching_sections.append(section)
-                    # Check if section_id appears as part of the path
-                    elif section_id in section.path:
-                        matching_sections.append(section)
-
-                if len(matching_sections) > 1:
-                    printer.print_error(
-                        f"Ambiguous section reference '{section_id}' "
-                        f"matches multiple sections:"
-                    )
-                    for section in matching_sections:
-                        printer.print_error(
-                            f"  - {section.title} (path: {section.path})"
-                        )
-                    printer.print_error(
-                        "Please use a unique path to identify the section."
-                    )
-                    raise typer.Exit(1)
-                elif len(matching_sections) == 0:
-                    printer.print_error(f"Section '{section_id}' not found.")
-                    printer.print_error(
-                        "Use 'info sections --paths' to see available section paths."
-                    )
-                    raise typer.Exit(1)
-                else:
-                    existing_section = matching_sections[0]
-
-        # Preserve heading level if content doesn't start with heading
-        if existing_section and not MarkdownProcessor.content_has_heading(content):
-            content = MarkdownProcessor.preserve_section_structure(
-                content=content, existing_section=existing_section
-            )
-
-        # Apply section operation
-        if section_policy == SectionPolicy.APPEND:
-            md_file.mddata.append_to_section(section_id, content)
-            action = "appended to"
-        elif section_policy == SectionPolicy.REPLACE:
-            md_file.mddata.replace_section(section_id, content)
-            action = "replaced"
-        else:  # UPDATE
-            md_file.mddata.update_section(section_id, content)
-            action = "updated"
+        # All section creation/update logic is handled by the core
+        # Just pass the section_id and content with the policy
+        md_file.mddata.set_section(section_id, content, policy=section_policy)
 
         md_file.save()
+
+        # Determine action for success message
+        if section_policy == SectionPolicy.APPEND:
+            action = "appended to"
+        elif section_policy == SectionPolicy.REPLACE:
+            action = "replaced"
+        else:  # UPDATE
+            action = "updated"
+
         printer.print_success(f"Section '{section_id}' {action}")
 
     except Exception as e:

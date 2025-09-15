@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from click import Choice
 
 from md_as_data.models import BlockType, HeadingLevel, SectionPolicy
 

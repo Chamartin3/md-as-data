@@ -7,6 +7,7 @@ from typing import Any, TypedDict, TypeVar, cast, get_type_hints
 
 from .models import (
     BlocksData,
+    BlocksQuery,
     ContentTree,
     FrontmatterProperties,
     FrontmatterPropertyValue,
@@ -16,6 +17,7 @@ from .models import (
     Section,
     SectionData,
     SectionPolicy,  # Alias for UpdatePolicy
+    SectionQuery,
     SectionsData,
     UpdatePolicy,
 )
@@ -651,6 +653,64 @@ class MarkdownData:
         except (KeyError, AttributeError):
             warnings.append(f"Invalid policy '{policy_value}', using UPDATE")
             return SectionPolicy.UPDATE
+
+    # Query methods (delegating to ContentTree)
+    def query_section(self, section_id: str) -> SectionQuery:
+        """Query section with validation and ambiguity detection."""
+        return self._content.query_section(section_id)
+
+    def find_blocks(
+        self, block_type: str | None = None, section_id: str | None = None
+    ) -> BlocksQuery:
+        """Find blocks with filtering."""
+        return self._content.find_blocks(block_type=block_type, section_id=section_id)
+
+    def set_section(
+        self,
+        section_id: str,
+        content: str,
+        policy: SectionPolicy = SectionPolicy.UPDATE,
+    ) -> None:
+        """Set section content with automatic handling of new subsections.
+
+        This method handles:
+        - Creating new subsections with proper heading levels
+        - Updating existing sections
+        - Generating section titles from IDs
+        - Adding headings if not present
+        """
+        query = self.query_section(section_id)
+
+        if query.error:
+            raise ValueError(query.error)
+
+        # Determine the correct heading level
+        if query.parent:
+            # New subsection - use parent level + 1
+            new_level = query.parent.level + 1
+            child_id = section_id.split(Section.SECTION_PATH_SEPARATOR)[-1]
+            section_title = self._content.generate_section_title(child_id)
+        elif query.section:
+            # Existing section - preserve its level
+            new_level = query.section.level
+            section_title = query.section.title
+        else:
+            # Should not happen based on query_section implementation
+            raise ValueError(f"Unable to determine section level for '{section_id}'")
+
+        # Add heading if not present
+        if not content.strip().startswith("#"):
+            heading_marker = "#" * new_level
+            content = f"{heading_marker} {section_title}\n\n{content}"
+
+        # Use existing mutation method
+        operation = UpdateOperation(
+            target=section_id,
+            type=UpdateOperationTypes.SECTION_TEXT,
+            data=content,
+            policy=policy,
+        )
+        self._set_content(operation)
 
     # Serialization
     def to_dict(self) -> MarkdownDataDict:
