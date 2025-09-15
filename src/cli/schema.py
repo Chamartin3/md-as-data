@@ -38,8 +38,30 @@ def generate_schema_command(
         typer.Option("--pretty/--compact", help="Pretty-print JSON output"),
     ] = True,
 ) -> None:
-    """Generate schema from document structure and content."""
-    md_file = cli_context.ensure_file_loaded()
+    """Generate schema from single document or folder of documents.
+
+    Automatically detects if the input is a file or folder:
+    - Single file: mdasdata document.md schema generate
+    - Folder: mdasdata ./docs/ schema generate (recursively finds all *.md files)
+
+    For folders with multiple documents, generates a merged schema by:
+    - Marking properties as required if present in ≥75% of documents
+    - Creating enum types for single-word string properties
+    - Using union types for properties with conflicting types
+    - Merging all section hierarchies
+
+    Examples:
+        Single file:
+        $ mdasdata document.md schema generate --pretty
+
+        Folder:
+        $ mdasdata ./documentation/ schema generate --output schema.json
+
+        Strict inference:
+        $ mdasdata ./docs/ schema generate --inference-mode strict
+    """
+    from md_as_data import MarkdownFile
+
     printer = MarkdownPrinter(cli_context.console)
 
     try:
@@ -53,8 +75,54 @@ def generate_schema_command(
             )
             raise typer.Exit(1)
 
-        # Generate schema from document
-        schema = generate_schema(md_file.mddata.data, inference_mode=mode)
+        # Collect all file paths
+        all_file_paths: list[Path] = []
+
+        # Check the primary path from context
+        if cli_context.file_path:
+            primary_path = cli_context.file_path
+
+            if primary_path.is_file():
+                # Single file
+                if primary_path.suffix == ".md":
+                    all_file_paths.append(primary_path)
+            elif primary_path.is_dir():
+                # Folder - recursively find all markdown files
+                md_files = sorted(primary_path.rglob("*.md"))
+                if not md_files:
+                    printer.print_warning(f"No markdown files found in {primary_path}")
+                all_file_paths.extend(md_files)
+
+        if not all_file_paths:
+            printer.print_error("No markdown files to process")
+            raise typer.Exit(1)
+
+        # Load all documents
+        documents = []
+        for file_path in all_file_paths:
+            try:
+                md_file = MarkdownFile(str(file_path))
+                documents.append(md_file.mddata.data)
+            except Exception as e:
+                printer.print_error(f"Failed to load {file_path}: {e}")
+                raise typer.Exit(1)
+
+        # Display file count
+        file_count = len(documents)
+        file_word = "file" if file_count == 1 else "files"
+        printer.console.print(
+            f"[dim]Schema generated from {file_count} markdown {file_word}[/dim]\n"
+        )
+
+        # Generate schema (handles single or multiple documents)
+        schema_data = (
+            documents if len(documents) > 1 else documents[0] if documents else None
+        )
+        if schema_data is None:
+            printer.print_error("No documents to generate schema from")
+            raise typer.Exit(1)
+
+        schema = generate_schema(schema_data, inference_mode=mode)
 
         # Format JSON output
         indent = 2 if pretty else None
@@ -67,6 +135,8 @@ def generate_schema_command(
         else:
             printer.console.print(json_output)
 
+    except typer.Exit:
+        raise
     except Exception as e:
         printer.print_error(f"Schema generation failed: {e}")
         raise typer.Exit(1)
