@@ -7,6 +7,10 @@ from typing import Annotated
 import typer
 
 from md_as_data.validation import SchemaInferenceMode, generate_schema
+from md_as_data.validation.schema_models import (
+    CURRENT_SCHEMA_VERSION,
+    SchemaFieldNames,
+)
 
 from .utils import MarkdownPrinter, cli_context
 
@@ -150,6 +154,15 @@ def validate_command(
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Show detailed validation results")
     ] = False,
+    validation_level: Annotated[
+        str | None,
+        typer.Option(
+            "--validation-level",
+            "-l",
+            help="Validation level: strict, warnings, or disabled. "
+            "Overrides schema value.",
+        ),
+    ] = None,
 ) -> None:
     """Validate document against a schema file."""
     md_file = cli_context.ensure_file_loaded()
@@ -165,9 +178,22 @@ def validate_command(
 
         # Import here to avoid circular dependency
         from md_as_data.validation import SchemaValidator
+        from md_as_data.validation.schema_models import ValidationLevel
 
-        # Create validator and validate
-        validator = SchemaValidator(schema_data)
+        # Parse validation level if provided
+        level = None
+        if validation_level:
+            try:
+                level = ValidationLevel(validation_level.lower())
+            except ValueError:
+                printer.print_error(
+                    f"Invalid validation level: {validation_level}. "
+                    f"Valid options: strict, warnings, disabled"
+                )
+                raise typer.Exit(1)
+
+        # Create validator with optional level override
+        validator = SchemaValidator(schema_data, validation_level=level)
         result = validator.validate(md_file.mddata)
 
         # Display results
@@ -224,17 +250,29 @@ def schema_info_command(
         # Display schema information
         printer.console.print(f"[bold]Schema: {schema_file}[/bold]\n")
 
+        # Schema version
+        version = schema_data.get(SchemaFieldNames.VERSION, "not specified")
+        printer.console.print(f"Schema Version: [cyan]{version}[/cyan]")
+
+        if version == "not specified":
+            printer.console.print(
+                "[yellow]⚠[/yellow]  Schema missing version field (legacy format)"
+            )
+        elif version != CURRENT_SCHEMA_VERSION:
+            printer.console.print(
+                f"[yellow]⚠[/yellow]  Schema version {version} differs from "
+                f"current version {CURRENT_SCHEMA_VERSION}"
+            )
+
         # Validation level
         validation_level = schema_data.get("validation_level", "warnings")
         printer.console.print(f"Validation Level: [cyan]{validation_level}[/cyan]")
 
         # Frontmatter properties
-        if "frontmatter" in schema_data:
-            frontmatter = schema_data["frontmatter"]
-            printer.console.print(
-                f"\nFrontmatter Properties: [green]{len(frontmatter)}[/green]"
-            )
-            for prop_name, prop_schema in frontmatter.items():
+        if SchemaFieldNames.PROPERTIES in schema_data:
+            properties = schema_data[SchemaFieldNames.PROPERTIES]
+            printer.console.print(f"\nProperties: [green]{len(properties)}[/green]")
+            for prop_name, prop_schema in properties.items():
                 required = prop_schema.get("required", False)
                 prop_type = prop_schema.get("type", "any")
                 req_marker = "[red]*[/red]" if required else " "
@@ -243,8 +281,8 @@ def schema_info_command(
                 )
 
         # Sections
-        if "sections" in schema_data:
-            sections = schema_data["sections"]
+        if SchemaFieldNames.SECTIONS in schema_data:
+            sections = schema_data[SchemaFieldNames.SECTIONS]
             printer.console.print(f"\nSections: [green]{len(sections)}[/green]")
             for section_id in sections.keys():
                 printer.console.print(f"  • {section_id}")

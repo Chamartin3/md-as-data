@@ -99,7 +99,7 @@ class BlockData(TypedDict):
     section_id: str  # ID of the section this block belongs to
     type: str  # BlockType value
     content: str | list[str]
-    metadata: dict[str, str]
+    metadata: dict[str, Any]
 
 
 class Block:
@@ -111,7 +111,7 @@ class Block:
         self.section = section_id
         self.type = block_type
         self.content = content
-        self.metadata: dict[str, str] = {}
+        self.metadata: dict[str, Any] = {}
 
     def to_dict(self) -> BlockData:
         """Convert block to dictionary structure."""
@@ -821,14 +821,14 @@ class ContentTree:
 class ParsedMarkdownData(TypedDict):
     """Complete data structure after parsing."""
 
-    frontmatter: dict[str, str | int | float | bool | list[str]]  # Flexible frontmatter
+    frontmatter: FrontmatterProperties
     content: ContentTree  # Root section
 
 
 class MarkdownDataDict(TypedDict):
     """Complete document structure for JSON export."""
 
-    frontmatter: dict[str, str | int | float | bool | list[str]]  # Flexible frontmatter
+    frontmatter: FrontmatterProperties
     content: SectionData  # Root section
 
 

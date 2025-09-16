@@ -11,8 +11,10 @@ from ..models import (
     Section,
 )
 from .schema_models import (
+    CURRENT_SCHEMA_VERSION,
     DocumentSchema,
     PropertySchema,
+    SchemaFieldNames,
     SchemaInferenceMode,
     SectionSchema,
     SectionValidationSchema,
@@ -56,9 +58,11 @@ class SchemaGenerator:
         Returns:
             Complete document schema definition
         """
+        frontmatter: FrontmatterProperties = data["frontmatter"]  # type: ignore[assignment]
         return {
-            "frontmatter": self._analyze_frontmatter(data["frontmatter"]),
-            "sections": self._analyze_sections(data["content"]),
+            SchemaFieldNames.VERSION: CURRENT_SCHEMA_VERSION,
+            SchemaFieldNames.PROPERTIES: self._analyze_frontmatter(frontmatter),
+            SchemaFieldNames.SECTIONS: self._analyze_sections(data["content"]),
             "validation_level": ValidationLevel.WARNINGS,
         }
 
@@ -188,11 +192,10 @@ class SchemaGenerator:
 
         # Analyze subsections recursively
         if section.subsections:
-            schema["subsections"] = {}
+            children: dict[str, SectionSchema] = {}
             for subsection in section.subsections:
-                schema["subsections"][subsection.id] = self._infer_section_schema(
-                    subsection
-                )
+                children[subsection.id] = self._infer_section_schema(subsection)
+            schema["children"] = children
 
         return schema
 
@@ -248,8 +251,9 @@ class SchemaGenerator:
         sections_schema = self._merge_section_hierarchies(documents)
 
         return {
-            "frontmatter": frontmatter_schema,
-            "sections": sections_schema,
+            SchemaFieldNames.VERSION: CURRENT_SCHEMA_VERSION,
+            SchemaFieldNames.PROPERTIES: frontmatter_schema,
+            SchemaFieldNames.SECTIONS: sections_schema,
             "validation_level": ValidationLevel.WARNINGS,
         }
 
@@ -355,10 +359,14 @@ class SchemaGenerator:
                     new_schema = self._infer_section_schema(section)
 
                     # Merge subsections if present
-                    if "subsections" in new_schema:
-                        if "subsections" not in existing_schema:
-                            existing_schema["subsections"] = {}
-                        existing_schema["subsections"].update(new_schema["subsections"])
+                    new_children = new_schema.get("children")
+                    if new_children is not None:
+                        existing_children = existing_schema.get("children")
+                        if existing_children is None:
+                            existing_schema["children"] = new_children
+                        else:
+                            existing_children.update(new_children)
+                            existing_schema["children"] = existing_children
 
         return merged_sections
 

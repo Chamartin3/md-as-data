@@ -35,6 +35,9 @@ from .processor import (
 )
 from .source import MarkdownFile
 
+# Task list functionality
+from .tasklist import TaskList
+
 # Schema validation functionality
 from .validation import (
     DocumentSchema,
@@ -54,6 +57,8 @@ __all__ = [
     "Section",
     "Block",
     "ContentTree",
+    # Task list functionality
+    "TaskList",
     # Enums
     "BlockType",
     "HeadingLevel",

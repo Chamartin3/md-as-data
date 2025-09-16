@@ -5,6 +5,26 @@ from typing import Any, Literal, TypedDict
 
 from ..models import BlockType, FrontmatterValue
 
+# Schema version constant for tracking schema evolution
+CURRENT_SCHEMA_VERSION = "1.0.0"
+
+
+class SchemaFieldNames:
+    """Constants for schema field names."""
+
+    VERSION = "version"
+    PROPERTIES = "properties"
+    SECTIONS = "sections"
+    CHILDREN = "children"
+    VALIDATION = "validation"
+
+
+class ValidationIssueTypes:
+    """Constants for validation issue types."""
+
+    PROPERTY = "property"
+    SECTION = "section"
+
 
 class SchemaInferenceMode(StrEnum):
     """Modes for inferring schema from existing documents."""
@@ -60,6 +80,7 @@ class PropertySchema(TypedDict, total=False):
     default: FrontmatterValue
     validations: list[ValidationSchema]
     description: str  # Optional property description
+    enum: list[str | None]  # Allowed enum values for property
 
 
 class SectionValidationSchema(TypedDict, total=False):
@@ -74,23 +95,26 @@ class SectionValidationSchema(TypedDict, total=False):
 class SectionSchema(TypedDict, total=False):
     """Schema definition for content sections."""
 
-    subsections: dict[str, "SectionSchema"]
+    children: dict[str, "SectionSchema"]  # Renamed from subsections
     description: str
     validation: SectionValidationSchema
 
 
-class DocumentSchema(TypedDict):
+class DocumentSchema(TypedDict, total=False):
     """Complete document schema definition."""
 
-    frontmatter: dict[str, PropertySchema]
+    version: str  # Optional schema version for tracking evolution
+    properties: dict[str, PropertySchema]  # Renamed from frontmatter
     sections: dict[str, SectionSchema]
-    validation_level: ValidationLevel
+    validation_level: ValidationLevel  # Will be deprecated - move to runtime config
 
 
 class ValidationIssue(TypedDict):
     """Individual validation issue."""
 
-    field_type: Literal["frontmatter", "section"]
+    field_type: Literal[
+        "property", "section"
+    ]  # Updated from "frontmatter" to "property"
     field: str  # Property/section path
     message: str
     expected: str | None

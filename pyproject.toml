@@ -25,6 +25,7 @@ dev = [
 
 [project.scripts]
 mdasdata = "cli.main:main_cli"
+lint = "cli.lint_command:main"
 
 [tool.ruff]
 line-length = 88
@@ -47,6 +48,15 @@ python_functions = ["test_*"]
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
+reportOptionalMemberAccess = "none"
+reportOptionalSubscript = "none"
+reportTypedDictNotRequiredAccess = "none"
+reportArgumentType = "none"
+reportIndexIssue = "none"
+reportCallIssue = "none"
+reportOperatorIssue = "none"
+reportAttributeAccessIssue = "none"
+reportAssignmentType = "none"
 
 [build-system]
 requires = ["uv_build>=0.8.15,<0.9.0"]

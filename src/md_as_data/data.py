@@ -132,7 +132,7 @@ class UpdateOperationTypes(Enum):
 
     @classmethod
     def _classify_dict_input(
-        cls, value: InputDataDictOptions
+        cls, value: InputDataDictOptions | dict[str, Any]
     ) -> "UpdateOperationTypes":
         """Classify dict as vorect type."""
         section_text = validate_typed_dict(value, InputDictSectionContent)
@@ -295,14 +295,28 @@ class MarkdownData:
     _validator: SchemaValidator | None
 
     def __init__(
-        self, parsed_data: ParsedMarkdownData, schema: DocumentSchema | None = None
+        self,
+        parsed_data: ParsedMarkdownData,
+        schema: DocumentSchema | None = None,
+        validation_level: ValidationLevel | None = None,
     ) -> None:
+        """Initialize markdown data interface.
+
+        Args:
+            parsed_data: Parsed markdown document data
+            schema: Optional schema for validation
+            validation_level: Optional validation level override
+        """
         # Use object.__setattr__ to bypass our custom __setattr__ during init
         object.__setattr__(self, "_frontmatter", parsed_data["frontmatter"])
         object.__setattr__(self, "_content", parsed_data["content"])
         object.__setattr__(self, "_schema", schema)
         object.__setattr__(
-            self, "_validator", SchemaValidator(schema) if schema else None
+            self,
+            "_validator",
+            SchemaValidator(schema, validation_level=validation_level)
+            if schema
+            else None,
         )
 
     def __repr__(self) -> str:
@@ -547,10 +561,14 @@ class MarkdownData:
         elif policy == UpdatePolicy.APPEND:
             # Append to existing value (arrays only)
             if isinstance(existing_value, list) and isinstance(new_value, list):
-                self._frontmatter[key] = existing_value + new_value
+                self._frontmatter[key] = cast(
+                    FrontmatterValue, existing_value + new_value
+                )
             elif isinstance(existing_value, list):
                 # Append new_value as list item
-                self._frontmatter[key] = existing_value + [new_value]
+                self._frontmatter[key] = cast(
+                    FrontmatterValue, existing_value + [new_value]
+                )
             else:
                 # If not a list, treat as replace
                 self._frontmatter[key] = new_value

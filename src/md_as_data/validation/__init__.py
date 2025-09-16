@@ -19,12 +19,16 @@ from .schema_models import (
     ValidationType,
     ValueType,
 )
+from .schema_property_validator import PropertyValidator
+from .schema_section_validator import SectionValidator
 from .schema_validator import SchemaValidator
 
 __all__ = [
     "InputParser",
     "ParseResult",
     "SchemaValidator",
+    "PropertyValidator",
+    "SectionValidator",
     "SchemaGenerator",
     "generate_schema",
     "DocumentSchema",
