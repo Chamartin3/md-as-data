@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import NamedTuple, TypedDict, TypeVar, Union
 
 # Type aliases for frontmatter properties
-FrontmatterValue = str | int | float | bool | list[str]
+from typing import Any, NamedTuple, TypedDict, TypeVar, Union
+
+FrontmatterValue = str | int | float | bool | list[str] | dict[str, Any] | None
 FrontmatterProperties = dict[str, FrontmatterValue]
 
 
@@ -32,6 +33,7 @@ class BlockType(Enum):
     PARAGRAPH = "paragraph"
     LIST = "list"
     ORDERED_LIST = "ordered_list"
+    TASK_LIST = "task_list"
     CODE_BLOCK = "code_block"
     LINK = "link"
     IMAGE = "image"
@@ -65,6 +67,13 @@ SectionPolicy = UpdatePolicy
 FrontmatterPolicy = UpdatePolicy
 
 
+class TaskItemData(TypedDict):
+    """Individual task item with status metadata."""
+
+    content: str  # Task text content without checkbox
+    symbol: str  # Checkbox character (x, space, !, ~, ?, etc.)
+
+
 # Public input type for external API (simplified)
 InputDataOptions = Union[
     FrontmatterValue,  # Simple frontmatter value (inferred)
@@ -81,6 +90,7 @@ class BlockMetadata(TypedDict, total=False):
     src: str  # For images
     alt: str  # For images
     title: str  # For links/images
+    tasks: list[TaskItemData]  # For task list blocks
 
 
 class BlockData(TypedDict):
@@ -144,6 +154,35 @@ class Block:
         if self.type == BlockType.CODE_BLOCK:
             language = self.metadata.get("language", "")
             return f"```{language}\n{self.content}\n```"
+
+        if self.type == BlockType.TASK_LIST:
+            if isinstance(self.content, list) and "tasks" in self.metadata:
+                items = []
+                tasks_data = self.metadata["tasks"]
+                # tasks_data should be a list[TaskItemData]
+                # but metadata is typed as dict[str, str]
+                # We need to handle this at runtime
+                if isinstance(tasks_data, list):
+                    for i, content in enumerate(self.content):
+                        if i < len(tasks_data):
+                            task_item = tasks_data[i]
+                            if isinstance(task_item, dict):
+                                symbol = task_item.get("symbol", " ")
+                            else:
+                                symbol = " "
+                            items.append(f"- [{symbol}] {content}")
+                        else:
+                            # Fallback if tasks metadata is missing for some items
+                            items.append(f"- [ ] {content}")
+                    return "\n".join(items)
+                # Fallback if tasks is not a list
+                return "\n".join(f"- [ ] {item}" for item in self.content)
+            else:
+                # Fallback for malformed task list
+                if isinstance(self.content, list):
+                    return "\n".join(f"- [ ] {item}" for item in self.content)
+                else:
+                    return f"- [ ] {self.content}"
 
         if self.type == BlockType.LIST:
             if isinstance(self.content, list):

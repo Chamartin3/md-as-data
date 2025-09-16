@@ -1,5 +1,6 @@
 """Markdown processing functionality for parsing and serialization."""
 
+import re
 from collections.abc import Callable
 from enum import StrEnum
 from typing import Any, cast
@@ -17,6 +18,7 @@ from .models import (
     MarkdownDataDict,
     ParsedMarkdownData,
     Section,
+    TaskItemData,
 )
 
 
@@ -243,6 +245,27 @@ class MarkdownProcessor:
         elif block_type == "code_block":
             language = metadata.get("language", "")
             return f"```{language}\n{content}\n```"
+        elif block_type == "task_list":
+            if isinstance(content, list) and "tasks" in metadata:
+                items = []
+                tasks_data = metadata["tasks"]
+                if isinstance(tasks_data, list):
+                    for i, task_content in enumerate(content):
+                        if i < len(tasks_data):
+                            task_item = tasks_data[i]
+                            if isinstance(task_item, dict):
+                                symbol = task_item.get("symbol", " ")
+                            else:
+                                symbol = " "
+                            items.append(f"- [{symbol}] {task_content}")
+                        else:
+                            items.append(f"- [ ] {task_content}")
+                    return "\n".join(items)
+            # Fallback for malformed task list
+            if isinstance(content, list):
+                return "\n".join(f"- [ ] {item}" for item in content)
+            else:
+                return f"- [ ] {content}"
         elif block_type == "list":
             if isinstance(content, list):
                 return "\n".join(f"- {item}" for item in content)
@@ -356,27 +379,77 @@ class MarkdownProcessor:
         # Skip paragraph_open, inline, and paragraph_close tokens
         return 3
 
+    def _parse_task_item(self, item_text: str) -> TaskItemData | None:
+        """Parse task list item checkbox syntax.
+
+        Matches patterns like:
+        - [x] Completed task
+        - [ ] Pending task
+        - [!] Priority task
+        - [~] In-progress task
+        - [?] Blocked task
+        - [P] Custom status
+
+        Args:
+            item_text: The list item text to parse
+
+        Returns:
+            TaskItemData with content and symbol if pattern matches,
+            None otherwise
+        """
+        # Match pattern: optional whitespace, [char], space, content
+        pattern = r"^\s*\[(.?)\]\s+(.*)"
+        match = re.match(pattern, item_text.strip())
+
+        if not match:
+            return None
+
+        symbol = match.group(1)
+        content = match.group(2)
+
+        return {"content": content, "symbol": symbol}
+
     def _handle_bullet_list(self, token: Token, state: dict) -> int:
-        """Handle bullet list tokens."""
+        """Handle bullet list tokens, detecting task lists."""
         tokens = state["tokens"]
         i = state["index"]
 
         list_items = []
+        task_items = []
         j = i + 1
 
+        # Extract list items and check for task patterns
         while j < len(tokens) and tokens[j].type != TokenType.BULLET_LIST_CLOSE:
             if tokens[j].type == TokenType.LIST_ITEM_OPEN:
                 # Find the content in this list item
                 k = j + 1
                 while k < len(tokens) and tokens[k].type != TokenType.LIST_ITEM_CLOSE:
                     if tokens[k].type == TokenType.INLINE:
-                        list_items.append(tokens[k].content)
+                        item_content = tokens[k].content
+                        task_data = self._parse_task_item(item_content)
+
+                        if task_data:
+                            task_items.append(task_data)
+                        else:
+                            list_items.append(item_content)
                         break
                     k += 1
             j += 1
 
-        if list_items:
-            block = Block(state["current_section"].id, BlockType.LIST, list_items)
+        # Create appropriate block type
+        if task_items and not list_items:
+            # Pure task list
+            block = Block(
+                state["current_section"].id,
+                BlockType.TASK_LIST,
+                [t["content"] for t in task_items],
+            )
+            block.metadata["tasks"] = task_items  # type: ignore
+            state["current_section"].add_block(block)
+        elif list_items or task_items:
+            # Regular list or mixed list (treat mixed as regular)
+            all_items = [t["content"] for t in task_items] + list_items
+            block = Block(state["current_section"].id, BlockType.LIST, all_items)
             state["current_section"].add_block(block)
 
         # Return how many tokens to skip

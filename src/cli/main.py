@@ -66,7 +66,7 @@ def main(
 @app.command("quick-info")
 def quick_info() -> None:
     """Quick file information (shortcut for info summary)."""
-    file_path = cli_context.file_path
+    file_path = cli_context.ensure_file_path()
     md_file = cli_context.ensure_file_loaded()
 
     from .utils import MarkdownPrinter

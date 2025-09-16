@@ -142,10 +142,15 @@ class MarkdownPrinter:
             self.console.print(f"[bold]{i}.[/bold] [blue]{block['type']}[/blue]")
 
             if "content" in block and block["content"]:
+                raw_content = block["content"]
+                # Handle both string and list content
+                if isinstance(raw_content, list):
+                    content_str = ", ".join(str(item) for item in raw_content)
+                else:
+                    content_str = str(raw_content)
+
                 content = (
-                    block["content"][:100] + "..."
-                    if len(block["content"]) > 100
-                    else block["content"]
+                    content_str[:100] + "..." if len(content_str) > 100 else content_str
                 )
                 self.console.print(f"   {content}")
 

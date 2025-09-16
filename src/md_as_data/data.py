@@ -8,6 +8,7 @@ from typing import Any, TypedDict, TypeVar, cast, get_type_hints
 from .models import (
     BlocksData,
     BlocksQuery,
+    BlockType,
     ContentTree,
     FrontmatterProperties,
     FrontmatterPropertyValue,
@@ -19,9 +20,11 @@ from .models import (
     SectionPolicy,  # Alias for UpdatePolicy
     SectionQuery,
     SectionsData,
+    TaskItemData,
     UpdatePolicy,
 )
 from .processor import MarkdownProcessor
+from .tasklist import TaskList
 from .validation import DocumentSchema, SchemaValidator, ValidationLevel
 
 
@@ -546,6 +549,7 @@ class MarkdownData:
             if isinstance(existing_value, list) and isinstance(new_value, list):
                 self._frontmatter[key] = existing_value + new_value
             elif isinstance(existing_value, list):
+                # Append new_value as list item
                 self._frontmatter[key] = existing_value + [new_value]
             else:
                 # If not a list, treat as replace
@@ -589,10 +593,12 @@ class MarkdownData:
             for section_update in changes["sections"]:
                 section_id = "unknown"
                 try:
-                    section_id = section_update["id"]
-                    content = section_update["content"]
+                    # Safe access to TypedDict fields
+                    section_id = section_update.get("id", "unknown")  # type: ignore
+                    content = section_update.get("content", "")  # type: ignore
+                    policy_value = section_update.get("policy", "update")  # type: ignore
                     policy = self._parse_section_policy(
-                        section_update.get("policy", "update"), result["warnings"]
+                        policy_value, result["warnings"]
                     )
 
                     if policy == SectionPolicy.APPEND:
@@ -711,6 +717,83 @@ class MarkdownData:
             policy=policy,
         )
         self._set_content(operation)
+
+    # Task list operations
+    def get_task_lists(self, section_id: str | None = None) -> list[TaskList]:
+        """Get TaskList objects for advanced task operations.
+
+        Args:
+            section_id: Optional section to filter task lists by
+
+        Returns:
+            List of TaskList wrapper objects
+        """
+        task_lists = []
+
+        # Get sections to search
+        if section_id:
+            query = self.query_section(section_id)
+            if query.error or not query.section:
+                return task_lists
+            sections = [query.section]
+        else:
+            sections = self.content.get_all_sections()
+
+        # Extract task list blocks
+        for section in sections:
+            for block in section.blocks:
+                if block.type == BlockType.TASK_LIST:
+                    task_lists.append(TaskList(block))
+
+        return task_lists
+
+    def filter_tasks_by_symbol(
+        self, symbol: str, section_id: str | None = None
+    ) -> list[TaskItemData]:
+        """Get all tasks with specific symbol across sections.
+
+        Args:
+            symbol: Checkbox character to filter by (e.g., 'x', ' ', '!')
+            section_id: Optional section to limit search to
+
+        Returns:
+            List of TaskItemData matching the symbol
+        """
+        all_tasks = []
+        for task_list in self.get_task_lists(section_id):
+            matching_tasks = task_list.filter_by_symbol(symbol)
+            all_tasks.extend(matching_tasks)
+        return all_tasks
+
+    def get_completed_tasks(self, section_id: str | None = None) -> list[TaskItemData]:
+        """Get all completed tasks (marked with 'x' or 'X').
+
+        Args:
+            section_id: Optional section to limit search to
+
+        Returns:
+            List of completed TaskItemData
+        """
+        all_tasks = []
+        for task_list in self.get_task_lists(section_id):
+            completed_tasks = task_list.get_completed_tasks()
+            all_tasks.extend(completed_tasks)
+        return all_tasks
+
+    def get_pending_tasks(self, section_id: str | None = None) -> list[TaskItemData]:
+        """Get all pending tasks (marked with space).
+
+        Args:
+            section_id: Optional section to limit search to
+
+        Returns:
+            List of pending TaskItemData
+        """
+        all_tasks = []
+        for task_list in self.get_task_lists(section_id):
+            pending_tasks = task_list.get_pending_tasks()
+            all_tasks.extend(pending_tasks)
+        return all_tasks
 
     # Serialization
     def to_dict(self) -> MarkdownDataDict:
