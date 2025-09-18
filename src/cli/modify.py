@@ -8,9 +8,8 @@ from typing import Annotated
 import typer
 
 from md_as_data.models import SectionPolicy
-from md_as_data.validation import InputParser
 
-from .utils import MarkdownPrinter, cli_context, section_policy_converter
+from .utils import InputParser, MarkdownPrinter, cli_context, section_policy_converter
 
 app = typer.Typer(
     name="modify",

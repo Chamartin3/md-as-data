@@ -1,6 +1,7 @@
 """CLI utilities package."""
 
 from .context import CLIContext, cli_context
+from .parsers import InputParser, ParseResult
 from .printers import MarkdownPrinter
 from .types import (
     BlockTypeArg,
@@ -20,6 +21,8 @@ from .types import (
 __all__ = [
     "CLIContext",
     "cli_context",
+    "InputParser",
+    "ParseResult",
     "MarkdownPrinter",
     "section_policy_converter",
     "block_type_converter",
