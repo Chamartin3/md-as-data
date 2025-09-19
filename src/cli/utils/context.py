@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from md_as_data import MarkdownFile
+from mddata import MarkdownFile
 
 
 class CLIContext:
@@ -50,6 +50,15 @@ class CLIContext:
                 f"[red]Error: '{file_path}' is not a file or directory[/red]"
             )
             raise typer.Exit(1)
+
+    def load_file_for_command(self, file_path: Path) -> MarkdownFile:
+        """Load a markdown file for a command and return it.
+
+        This is the standard way for commands to load files.
+        Stores the path and file in context for any shared needs.
+        """
+        self.load_file(file_path)
+        return self.ensure_file_loaded()
 
     def ensure_file_loaded(self) -> MarkdownFile:
         """Ensure a file is loaded and return it."""

@@ -1,5 +1,6 @@
 {
-  "frontmatter": {
+  "version": "1.0.0",
+  "properties": {
     "title": {
       "type": "str",
       "required": true,
@@ -191,7 +192,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "code_example": {
           "validation": {
             "required": false,
@@ -212,7 +213,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "final_notes": {
               "validation": {
                 "required": false,
@@ -247,7 +248,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "final_notes": {
           "validation": {
             "required": false,
@@ -310,6 +311,5 @@
         ]
       }
     }
-  },
-  "validation_level": "warnings"
+  }
 }

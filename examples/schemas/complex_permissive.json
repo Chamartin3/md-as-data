@@ -1,5 +1,6 @@
 {
-  "frontmatter": {
+  "version": "1.0.0",
+  "properties": {
     "title": {
       "type": "str",
       "required": true
@@ -55,28 +56,28 @@
   },
   "sections": {
     "complex_document_structure": {
-      "subsections": {
+      "children": {
         "table_of_contents": {},
         "scope": {},
         "features_overview": {
-          "subsections": {
+          "children": {
             "technical_details": {}
           }
         },
         "code_examples": {
-          "subsections": {
+          "children": {
             "python_code": {},
             "javascript_code": {},
             "shell_commands": {}
           }
         },
         "data_structures": {
-          "subsections": {
+          "children": {
             "implementation_notes": {}
           }
         },
         "advanced_features": {
-          "subsections": {
+          "children": {
             "nested_lists": {},
             "complex_paragraphs": {}
           }
@@ -88,13 +89,13 @@
     "table_of_contents": {},
     "scope": {},
     "features_overview": {
-      "subsections": {
+      "children": {
         "technical_details": {}
       }
     },
     "technical_details": {},
     "code_examples": {
-      "subsections": {
+      "children": {
         "python_code": {},
         "javascript_code": {},
         "shell_commands": {}
@@ -104,13 +105,13 @@
     "javascript_code": {},
     "shell_commands": {},
     "data_structures": {
-      "subsections": {
+      "children": {
         "implementation_notes": {}
       }
     },
     "implementation_notes": {},
     "advanced_features": {
-      "subsections": {
+      "children": {
         "nested_lists": {},
         "complex_paragraphs": {}
       }
@@ -120,14 +121,14 @@
     "performance_considerations": {},
     "introduction": {},
     "final_notes": {
-      "subsections": {
+      "children": {
         "conclusion": {
-          "subsections": {
+          "children": {
             "summary": {},
             "next_steps": {},
             "references": {},
             "extra": {
-              "subsections": {
+              "children": {
                 "extra": {},
                 "second_additional_info": {},
                 "additional_info": {}
@@ -139,12 +140,12 @@
       }
     },
     "conclusion": {
-      "subsections": {
+      "children": {
         "summary": {},
         "next_steps": {},
         "references": {},
         "extra": {
-          "subsections": {
+          "children": {
             "extra": {},
             "second_additional_info": {},
             "additional_info": {}
@@ -159,6 +160,5 @@
     "second_additional_info": {},
     "additional_info": {},
     "getting_started": {}
-  },
-  "validation_level": "warnings"
+  }
 }

@@ -1,0 +1,91 @@
+{
+  "frontmatter": {
+    "title": "Quick Meeting Notes",
+    "date": "2025-10-21",
+    "attendees": [
+      "Alice",
+      "Bob",
+      "Charlie"
+    ]
+  },
+  "content": {
+    "id": "",
+    "title": "",
+    "level": 0,
+    "blocks": [],
+    "children": [
+      {
+        "id": "agenda",
+        "title": "Agenda",
+        "level": 2,
+        "blocks": [
+          {
+            "section_id": "agenda",
+            "type": "list",
+            "content": "1. Review Q3 achievements\n2. Define Q4 objectives\n3. Assign project leads\n4. Schedule follow-ups"
+          }
+        ],
+        "children": [],
+        "path": "agenda"
+      },
+      {
+        "id": "decisions",
+        "title": "Decisions",
+        "level": 2,
+        "blocks": [
+          {
+            "section_id": "decisions",
+            "type": "paragraph",
+            "content": "The team agreed on the following key decisions:"
+          },
+          {
+            "section_id": "decisions",
+            "type": "list",
+            "content": "- Alice will lead the API redesign project\n- Bob will focus on performance optimization\n- Charlie will manage the documentation update\n- Weekly sync meetings every Thursday at 2 PM"
+          }
+        ],
+        "children": [],
+        "path": "decisions"
+      },
+      {
+        "id": "action_items",
+        "title": "Action Items",
+        "level": 2,
+        "blocks": [
+          {
+            "section_id": "action_items",
+            "type": "task_list",
+            "content": [
+              "Alice: Create API redesign proposal by Oct 28",
+              "Bob: Run performance benchmarks on current system",
+              "Charlie: Audit existing documentation for gaps",
+              "All: Block calendar for weekly sync meetings"
+            ],
+            "metadata": {
+              "tasks": [
+                {
+                  "content": "Alice: Create API redesign proposal by Oct 28",
+                  "symbol": " "
+                },
+                {
+                  "content": "Bob: Run performance benchmarks on current system",
+                  "symbol": " "
+                },
+                {
+                  "content": "Charlie: Audit existing documentation for gaps",
+                  "symbol": " "
+                },
+                {
+                  "content": "All: Block calendar for weekly sync meetings",
+                  "symbol": "x"
+                }
+              ]
+            }
+          }
+        ],
+        "children": [],
+        "path": "action_items"
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 {
-  "frontmatter": {
+  "version": "1.0.0",
+  "properties": {
     "title": {
       "type": "str",
       "required": true,
@@ -208,7 +209,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "table_of_contents": {
           "validation": {
             "required": false,
@@ -239,7 +240,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "technical_details": {
               "validation": {
                 "required": false,
@@ -262,7 +263,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "python_code": {
               "validation": {
                 "required": false,
@@ -305,7 +306,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "implementation_notes": {
               "validation": {
                 "required": false,
@@ -327,7 +328,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "nested_lists": {
               "validation": {
                 "required": false,
@@ -403,7 +404,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "technical_details": {
           "validation": {
             "required": false,
@@ -437,7 +438,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "python_code": {
           "validation": {
             "required": false,
@@ -510,7 +511,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "implementation_notes": {
           "validation": {
             "required": false,
@@ -542,7 +543,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "nested_lists": {
           "validation": {
             "required": false,
@@ -615,7 +616,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "conclusion": {
           "validation": {
             "required": false,
@@ -625,7 +626,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "summary": {
               "validation": {
                 "required": false,
@@ -666,7 +667,7 @@
                   "BlockType.PARAGRAPH"
                 ]
               },
-              "subsections": {
+              "children": {
                 "extra": {
                   "validation": {
                     "required": false,
@@ -722,7 +723,7 @@
           "BlockType.PARAGRAPH"
         ]
       },
-      "subsections": {
+      "children": {
         "summary": {
           "validation": {
             "required": false,
@@ -763,7 +764,7 @@
               "BlockType.PARAGRAPH"
             ]
           },
-          "subsections": {
+          "children": {
             "extra": {
               "validation": {
                 "required": false,
@@ -869,6 +870,5 @@
         ]
       }
     }
-  },
-  "validation_level": "warnings"
+  }
 }

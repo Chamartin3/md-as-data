@@ -17,6 +17,7 @@ Transform markdown documents into structured data that you can navigate, query, 
 - **Round-trip serialization** - markdown → objects → markdown (preserves formatting)
 - **Type-safe API** with comprehensive TypedDict interfaces and NamedTuple returns
 - **Extensible parser** with custom token handlers
+- **Template system** with parameterized document generation and substitution
 - **CLI and SDK** interfaces for different use cases
 
 ## Quick Start
@@ -152,6 +153,28 @@ mdasdata parse document.md --output parsed.json
 # Show document statistics
 mdasdata info document.md
 ```
+
+### Schema Validation
+
+Generate and validate document schemas in JSON or YAML format:
+
+```bash
+# Generate schema in JSON format (default)
+mdasdata document.md schema generate --output doc-schema.json --pretty
+
+# Generate schema in YAML format (better readability)
+mdasdata document.md schema generate --format yaml --output doc-schema.yaml
+
+# Validate document against schema (format auto-detected)
+mdasdata document.md schema validate doc-schema.json --verbose
+mdasdata document.md schema validate doc-schema.yaml --verbose
+
+# View schema information
+mdasdata document.md schema info doc-schema.json
+```
+
+**Format Compatibility:**
+Both JSON and YAML formats are fully supported and interchangeable. Use YAML for better readability when manually editing schemas, or JSON for programmatic processing.
 
 ## Advanced Usage
 

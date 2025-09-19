@@ -1,5 +1,6 @@
 {
-  "frontmatter": {},
+  "version": "1.0.0",
+  "properties": {},
   "sections": {
     "just_a_title": {
       "validation": {
@@ -11,6 +12,5 @@
         ]
       }
     }
-  },
-  "validation_level": "warnings"
+  }
 }

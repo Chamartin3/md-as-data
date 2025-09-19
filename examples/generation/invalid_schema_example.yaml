@@ -1,0 +1,13 @@
+# Example of invalid schema - demonstrates error handling
+version: "1.0.0"
+properties:
+  title:
+    # Missing 'type' field - will trigger validation error
+    required: true
+  author:
+    type: str
+sections:
+  introduction:
+    children:
+      overview:
+        children:  # null value - will trigger validation error

@@ -24,7 +24,7 @@ This folder contains example schemas generated from the markdown files in the `e
 Example:
 ```json
 {
-  "frontmatter": {
+  "properties": {
     "title": {
       "type": "str",
       "required": true
@@ -44,7 +44,7 @@ Example:
 Example:
 ```json
 {
-  "frontmatter": {
+  "properties": {
     "title": {
       "type": "str",
       "required": true,

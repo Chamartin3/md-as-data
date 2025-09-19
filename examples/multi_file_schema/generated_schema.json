@@ -1,0 +1,98 @@
+{
+  "version": "1.0.0",
+  "properties": {
+    "title": {
+      "type": "str",
+      "required": true
+    },
+    "author": {
+      "type": "str",
+      "required": false
+    },
+    "status": {
+      "type": "str",
+      "required": true,
+      "enum": [
+        "archived",
+        "draft",
+        "published"
+      ]
+    },
+    "version": {
+      "type": "int",
+      "required": false
+    },
+    "tags": {
+      "type": "list",
+      "required": true
+    },
+    "created": {
+      "type": "str",
+      "required": true,
+      "enum": [
+        "2025-01-10",
+        "2025-01-15",
+        "2025-01-20"
+      ]
+    },
+    "updated": {
+      "type": "str",
+      "required": false,
+      "enum": [
+        "2025-01-25"
+      ]
+    }
+  },
+  "sections": {
+    "introduction": {
+      "children": {
+        "getting_started": {},
+        "core_concepts": {
+          "children": {
+            "variables_and_types": {},
+            "control_flow": {}
+          }
+        },
+        "testing_frameworks": {
+          "children": {
+            "pytest_basics": {}
+          }
+        },
+        "best_practices": {}
+      }
+    },
+    "getting_started": {},
+    "core_concepts": {
+      "children": {
+        "variables_and_types": {},
+        "control_flow": {}
+      }
+    },
+    "variables_and_types": {},
+    "control_flow": {},
+    "testing_frameworks": {
+      "children": {
+        "pytest_basics": {}
+      }
+    },
+    "pytest_basics": {},
+    "best_practices": {},
+    "overview": {
+      "children": {
+        "package_managers": {
+          "children": {
+            "uv_package_manager": {}
+          }
+        },
+        "migration_guide": {}
+      }
+    },
+    "package_managers": {
+      "children": {
+        "uv_package_manager": {}
+      }
+    },
+    "uv_package_manager": {},
+    "migration_guide": {}
+  }
+}

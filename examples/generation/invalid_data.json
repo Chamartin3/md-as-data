@@ -1,0 +1,30 @@
+{
+  "frontmatter": {
+    "title": "Document with Schema Mismatch",
+    "author": 12345,
+    "date": "2025-10-21",
+    "tags": "this-should-be-a-list",
+    "extra_field": "This field is not in the schema"
+  },
+  "content": {
+    "id": "",
+    "title": "",
+    "level": 0,
+    "blocks": [],
+    "children": [
+      {
+        "id": "wrong_section",
+        "title": "This Section Not In Schema",
+        "level": 2,
+        "blocks": [
+          {
+            "type": "paragraph",
+            "content": "This data file intentionally doesn't match the blog_post_schema.json schema. It has wrong types, missing required sections, and extra fields."
+          }
+        ],
+        "children": [],
+        "path": "wrong_section"
+      }
+    ]
+  }
+}

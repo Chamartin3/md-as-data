@@ -196,3 +196,6 @@ workdir/
 # *.md
 !README.md
 !CLAUDE.md
+
+# Package name alias (copy of md_as_data)
+src/mdasdata/

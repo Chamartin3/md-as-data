@@ -1,0 +1,106 @@
+{
+  "frontmatter": {
+    "title": "Getting Started with Markdown as Data",
+    "author": "Jane Developer",
+    "date": "2025-10-21",
+    "tags": [
+      "tutorial",
+      "markdown",
+      "data"
+    ],
+    "draft": false
+  },
+  "content": {
+    "id": "",
+    "title": "",
+    "level": 0,
+    "blocks": [],
+    "children": [
+      {
+        "id": "introduction",
+        "title": "Introduction",
+        "level": 2,
+        "path": "introduction",
+        "blocks": [
+          {
+            "section_id": "introduction",
+            "type": "paragraph",
+            "content": "Welcome to this comprehensive guide on treating markdown files as structured data. This approach opens up powerful possibilities for programmatic document manipulation."
+          },
+          {
+            "section_id": "introduction",
+            "type": "paragraph",
+            "content": "In this tutorial, we'll explore how to leverage markdown's simplicity while gaining the benefits of structured data formats like JSON."
+          }
+        ],
+        "children": []
+      },
+      {
+        "id": "main_content",
+        "title": "Main Content",
+        "level": 2,
+        "blocks": [],
+        "children": [
+          {
+            "id": "section_one",
+            "title": "Section One",
+            "level": 3,
+            "blocks": [
+              {
+                "section_id": "section_one",
+                "type": "paragraph",
+                "content": "The first key concept is understanding how markdown's hierarchical structure maps naturally to tree-based data models."
+              },
+              {
+                "section_id": "section_one",
+                "type": "list",
+                "content": "- **Headings** define the tree structure\n- **Blocks** contain the actual content\n- **Frontmatter** provides metadata"
+              }
+            ],
+            "children": [],
+            "path": "main_content.section_one"
+          },
+          {
+            "id": "section_two",
+            "title": "Section Two",
+            "level": 3,
+            "blocks": [
+              {
+                "section_id": "section_two",
+                "type": "paragraph",
+                "content": "With programmatic access, you can query, filter, and transform markdown documents using familiar data manipulation patterns."
+              },
+              {
+                "section_id": "section_two",
+                "type": "code_block",
+                "content": "# Example: Query sections\nresult = doc.query_section('introduction')\nif result.section:\n    print(result.section.title)"
+              }
+            ],
+            "children": [],
+            "path": "main_content.section_two"
+          }
+        ],
+        "path": "main_content"
+      },
+      {
+        "id": "conclusion",
+        "title": "Conclusion",
+        "level": 2,
+        "blocks": [
+          {
+            "section_id": "conclusion",
+            "type": "paragraph",
+            "content": "By treating markdown as structured data, we combine human readability with programmatic power. This approach is ideal for documentation systems, content management, and automated workflows."
+          },
+          {
+            "section_id": "conclusion",
+            "type": "paragraph",
+            "content": "Try experimenting with your own markdown files and see what possibilities emerge!"
+          }
+        ],
+        "children": [],
+        "path": "conclusion"
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+parameters:
+  title:
+    type: str
+    required: true
+    description: Entry title
+  count:
+    type: int
+    required: false
+    default: 5
+    min: 1
+    max: 100
+  tags:
+    type: array
+    item_type: str
+    default: []
+  publish_date:
+    type: date
+    default: "{date}"
+changes:
+  frontmatter:
+    title: "{title}"
+    count: "{count}"
+    tags: "{tags}"
+    date: "{publish_date}"
+  sections:
+    - id: summary
+      content: "Summary for {title}"
+    - id: details
+      content: "Details with count: {count}"

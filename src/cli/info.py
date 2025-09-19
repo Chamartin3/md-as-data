@@ -1,5 +1,6 @@
 """Info subcommands for querying markdown file information."""
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -8,50 +9,42 @@ from rich.table import Table
 from .utils import BlockTypeArg, MarkdownPrinter, cli_context
 
 app = typer.Typer(
-    name="info", help="Query information about markdown files", no_args_is_help=False
+    name="info", help="Query information about markdown files", no_args_is_help=True
 )
 
 VerboseOpt = Annotated[
     bool, typer.Option("--verbose", "-v", help="Show verbose output")
 ]
+FilePathArg = Annotated[Path, typer.Argument(help="Path to the markdown file")]
 
 
-@app.callback(invoke_without_command=True)
-def info_default(
+@app.callback()
+def info_callback(
     ctx: typer.Context,
-    verbose: VerboseOpt = False,
 ) -> None:
-    """Show file information. Default: quick summary.
+    """Show file information.
 
-    Use --help to see other commands.
+    Use --help to see available commands.
     """
-    if ctx.invoked_subcommand is None:
-        # No subcommand specified, run quick-info (summary)
-        cli_context.verbose = verbose
-        file_path = cli_context.ensure_file_path()
-        md_file = cli_context.ensure_file_loaded()
-
-        printer = MarkdownPrinter(cli_context.console)
-        printer.print_file_summary(file_path, md_file, verbose)
+    # Just a placeholder callback - file_path is handled by individual commands
+    pass
 
 
 @app.command("summary")
-def summary(verbose: VerboseOpt = False) -> None:
+def summary(file_path: FilePathArg, verbose: VerboseOpt = False) -> None:
     """Show file summary with basic statistics."""
     cli_context.verbose = verbose
-    file_path = cli_context.ensure_file_path()
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
 
     printer = MarkdownPrinter(cli_context.console)
     printer.print_file_summary(file_path, md_file, verbose)
 
 
 @app.command("properties")
-def properties(verbose: VerboseOpt = False) -> None:
+def properties(file_path: FilePathArg, verbose: VerboseOpt = False) -> None:
     """List all frontmatter properties."""
     cli_context.verbose = verbose
-    file_path = cli_context.ensure_file_path()
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
 
     frontmatter = md_file.mddata.frontmatter
     printer = MarkdownPrinter(cli_context.console)
@@ -60,6 +53,7 @@ def properties(verbose: VerboseOpt = False) -> None:
 
 @app.command("sections")
 def sections(
+    file_path: FilePathArg,
     show_blocks: Annotated[
         bool, typer.Option("--blocks", "-b", help="Show block count for each section")
     ] = False,
@@ -68,8 +62,7 @@ def sections(
     ] = True,
 ) -> None:
     """List all document sections with hierarchy."""
-    file_path = cli_context.ensure_file_path()
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
 
     sections = md_file.mddata.get_all_sections()
     printer = MarkdownPrinter(cli_context.console)
@@ -78,14 +71,14 @@ def sections(
 
 @app.command("blocks")
 def blocks(
+    file_path: FilePathArg,
     block_type: BlockTypeArg = None,
     limit: Annotated[
         int | None, typer.Option("--limit", "-l", help="Limit number of blocks shown")
     ] = None,
 ) -> None:
     """List document blocks with optional filtering."""
-    file_path = cli_context.ensure_file_path()
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
 
     # Get filtered blocks using core functionality
     result = md_file.mddata.find_blocks(
@@ -107,6 +100,7 @@ def blocks(
 
 @app.command("tasks")
 def tasks(
+    file_path: FilePathArg,
     section: Annotated[
         str | None,
         typer.Option("--section", "-s", help="Filter tasks by section"),
@@ -134,7 +128,7 @@ def tasks(
         mdasdata doc.md info tasks --completed
         mdasdata doc.md info tasks --pending
     """
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
     doc = md_file.mddata
     console = cli_context.console
 

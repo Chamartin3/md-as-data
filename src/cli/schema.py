@@ -6,13 +6,14 @@ from typing import Annotated
 
 import typer
 
-from md_as_data.validation import SchemaInferenceMode, generate_schema
-from md_as_data.validation.schema_models import (
+from mddata.models.schema import (
     CURRENT_SCHEMA_VERSION,
     SchemaFieldNames,
 )
+from mddata.validation import SchemaInferenceMode, generate_schema
 
 from .utils import MarkdownPrinter, cli_context
+from .utils.types import OutputFormatChoice
 
 app = typer.Typer(
     name="schema",
@@ -20,9 +21,69 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+FilePathArg = Annotated[
+    Path, typer.Argument(help="Path to the markdown file or folder")
+]
+
+
+def _load_schema_file(schema_file: Path) -> dict:
+    """Load schema from JSON or YAML file with automatic format detection.
+
+    Detection strategy:
+    1. Check file extension (.yaml/.yml vs .json)
+    2. Try format-specific parser based on extension
+    3. Fall back to alternate format if parsing fails
+
+    Args:
+        schema_file: Path to schema file
+
+    Returns:
+        Loaded schema as dictionary
+
+    Raises:
+        FileNotFoundError: If schema file doesn't exist
+        Exception: If file cannot be parsed as JSON or YAML
+    """
+    if not schema_file.exists():
+        raise FileNotFoundError(f"Schema file not found: {schema_file}")
+
+    content = schema_file.read_text()
+    suffix = schema_file.suffix.lower()
+
+    # Try extension-based detection first
+    if suffix in [".yaml", ".yml"]:
+        try:
+            import yaml
+
+            return yaml.safe_load(content)
+        except ImportError:
+            # Fall back to JSON if YAML not available
+            pass
+        except Exception as e:
+            raise Exception(f"Invalid YAML schema format: {e}")
+
+    # Try JSON parsing (default for .json or unknown extensions)
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        # Try YAML as fallback
+        try:
+            import yaml
+
+            return yaml.safe_load(content)
+        except ImportError:
+            raise Exception(
+                f"Invalid JSON format and PyYAML not installed. JSON error: {e}"
+            )
+        except Exception as yaml_error:
+            raise Exception(
+                f"Invalid schema format. JSON error: {e}. YAML error: {yaml_error}"
+            )
+
 
 @app.command("generate")
 def generate_schema_command(
+    file_path: FilePathArg,
     inference_mode: Annotated[
         str,
         typer.Option(
@@ -33,10 +94,16 @@ def generate_schema_command(
     ] = "permissive",
     output: Annotated[
         Path | None,
-        typer.Option(
-            "--output", "-o", help="Output file for generated schema (JSON format)"
-        ),
+        typer.Option("--output", "-o", help="Output file for generated schema"),
     ] = None,
+    format_type: Annotated[
+        OutputFormatChoice,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: json or yaml",
+        ),
+    ] = OutputFormatChoice.JSON,
     pretty: Annotated[
         bool,
         typer.Option("--pretty/--compact", help="Pretty-print JSON output"),
@@ -54,6 +121,8 @@ def generate_schema_command(
     - Using union types for properties with conflicting types
     - Merging all section hierarchies
 
+    Output format can be JSON (default) or YAML, specified via --format parameter.
+
     Examples:
         Single file:
         $ mdasdata document.md schema generate --pretty
@@ -61,10 +130,13 @@ def generate_schema_command(
         Folder:
         $ mdasdata ./documentation/ schema generate --output schema.json
 
+        YAML format:
+        $ mdasdata ./docs/ schema generate --format yaml --output schema.yaml
+
         Strict inference:
         $ mdasdata ./docs/ schema generate --inference-mode strict
     """
-    from md_as_data import MarkdownFile
+    from mddata import MarkdownFile
 
     printer = MarkdownPrinter(cli_context.console)
 
@@ -82,20 +154,21 @@ def generate_schema_command(
         # Collect all file paths
         all_file_paths: list[Path] = []
 
-        # Check the primary path from context
-        if cli_context.file_path:
-            primary_path = cli_context.file_path
+        # Check the primary path from argument
+        if not file_path.exists():
+            printer.print_error(f"Path '{file_path}' does not exist")
+            raise typer.Exit(1)
 
-            if primary_path.is_file():
-                # Single file
-                if primary_path.suffix == ".md":
-                    all_file_paths.append(primary_path)
-            elif primary_path.is_dir():
-                # Folder - recursively find all markdown files
-                md_files = sorted(primary_path.rglob("*.md"))
-                if not md_files:
-                    printer.print_warning(f"No markdown files found in {primary_path}")
-                all_file_paths.extend(md_files)
+        if file_path.is_file():
+            # Single file
+            if file_path.suffix == ".md":
+                all_file_paths.append(file_path)
+        elif file_path.is_dir():
+            # Folder - recursively find all markdown files
+            md_files = sorted(file_path.rglob("*.md"))
+            if not md_files:
+                printer.print_warning(f"No markdown files found in {file_path}")
+            all_file_paths.extend(md_files)
 
         if not all_file_paths:
             printer.print_error("No markdown files to process")
@@ -128,16 +201,34 @@ def generate_schema_command(
 
         schema = generate_schema(schema_data, inference_mode=mode)
 
-        # Format JSON output
-        indent = 2 if pretty else None
-        json_output = json.dumps(schema, indent=indent, default=str)
+        # Serialize based on format
+        if format_type == OutputFormatChoice.YAML:
+            try:
+                import yaml
+
+                # Convert enums to strings via JSON serialization first
+                json_str = json.dumps(schema, default=str)
+                schema_dict = json.loads(json_str)
+
+                output_content = yaml.dump(
+                    schema_dict,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
+                )
+            except ImportError:
+                printer.print_error("PyYAML not installed. Install with: uv add pyyaml")
+                raise typer.Exit(1)
+        else:  # JSON
+            indent = 2 if pretty else None
+            output_content = json.dumps(schema, indent=indent, default=str)
 
         # Output to file or console
         if output:
-            output.write_text(json_output)
+            output.write_text(output_content)
             printer.print_success(f"Schema written to {output}")
         else:
-            printer.console.print(json_output)
+            printer.console.print(output_content)
 
     except typer.Exit:
         raise
@@ -148,9 +239,8 @@ def generate_schema_command(
 
 @app.command("validate")
 def validate_command(
-    schema_file: Annotated[
-        Path, typer.Argument(help="Path to schema file (JSON format)")
-    ],
+    file_path: FilePathArg,
+    schema_file: Annotated[Path, typer.Argument(help="Path to schema file")],
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Show detailed validation results")
     ] = False,
@@ -165,20 +255,16 @@ def validate_command(
     ] = None,
 ) -> None:
     """Validate document against a schema file."""
-    md_file = cli_context.ensure_file_loaded()
+    md_file = cli_context.load_file_for_command(file_path)
     printer = MarkdownPrinter(cli_context.console)
 
     try:
-        # Load schema from file
-        if not schema_file.exists():
-            printer.print_error(f"Schema file not found: {schema_file}")
-            raise typer.Exit(1)
-
-        schema_data = json.loads(schema_file.read_text())
+        # Load schema using unified loader
+        schema_data = _load_schema_file(schema_file)
 
         # Import here to avoid circular dependency
-        from md_as_data.validation import SchemaValidator
-        from md_as_data.validation.schema_models import ValidationLevel
+        from mddata.models.schema import ValidationLevel
+        from mddata.validation import SchemaValidator
 
         # Parse validation level if provided
         level = None
@@ -222,8 +308,8 @@ def validate_command(
         if not result["valid"]:
             raise typer.Exit(1)
 
-    except json.JSONDecodeError as e:
-        printer.print_error(f"Invalid schema JSON: {e}")
+    except FileNotFoundError as e:
+        printer.print_error(str(e))
         raise typer.Exit(1)
     except Exception as e:
         printer.print_error(f"Validation failed: {e}")
@@ -232,20 +318,14 @@ def validate_command(
 
 @app.command("info")
 def schema_info_command(
-    schema_file: Annotated[
-        Path, typer.Argument(help="Path to schema file (JSON format)")
-    ],
+    schema_file: Annotated[Path, typer.Argument(help="Path to schema file")],
 ) -> None:
     """Display information about a schema file."""
     printer = MarkdownPrinter(cli_context.console)
 
     try:
-        # Load schema from file
-        if not schema_file.exists():
-            printer.print_error(f"Schema file not found: {schema_file}")
-            raise typer.Exit(1)
-
-        schema_data = json.loads(schema_file.read_text())
+        # Load schema using unified loader
+        schema_data = _load_schema_file(schema_file)
 
         # Display schema information
         printer.console.print(f"[bold]Schema: {schema_file}[/bold]\n")
@@ -264,9 +344,9 @@ def schema_info_command(
                 f"current version {CURRENT_SCHEMA_VERSION}"
             )
 
-        # Validation level
-        validation_level = schema_data.get("validation_level", "warnings")
-        printer.console.print(f"Validation Level: [cyan]{validation_level}[/cyan]")
+        printer.console.print(
+            "Validation Level: [dim]Not set (use --validation-level CLI option)[/dim]"
+        )
 
         # Frontmatter properties
         if SchemaFieldNames.PROPERTIES in schema_data:
@@ -287,8 +367,8 @@ def schema_info_command(
             for section_id in sections.keys():
                 printer.console.print(f"  • {section_id}")
 
-    except json.JSONDecodeError as e:
-        printer.print_error(f"Invalid schema JSON: {e}")
+    except FileNotFoundError as e:
+        printer.print_error(str(e))
         raise typer.Exit(1)
     except Exception as e:
         printer.print_error(f"Failed to read schema: {e}")

@@ -1,0 +1,8 @@
+parameters:
+  title:
+    type: str
+    required: true
+    description: Entry title
+changes:
+  frontmatter:
+    title: "{title}"

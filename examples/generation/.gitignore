@@ -1,0 +1,9 @@
+# Generated markdown files from test runs
+generated_*.md
+
+# Test outputs
+roundtrip_*.json
+roundtrip_*.md
+from_stdin.md
+inline_note.md
+test*.md

@@ -1,0 +1,57 @@
+version: "1.0.0"
+properties:
+  title:
+    type: str
+    required: true
+    default: "Project Specification"
+  version:
+    type: str
+    required: true
+    default: "0.1.0"
+  status:
+    type: str
+    required: true
+    default: "review"
+    enum: ["draft", "review", "approved", "archived"]
+  owner:
+    type: str
+    required: true
+    default: "Unassigned"
+  created_date:
+    type: str
+    required: true
+    default: "2025-01-01"
+  last_updated:
+    type: str
+    required: false
+sections:
+  overview:
+    children:
+      summary:
+        children: {}
+      objectives:
+        children:
+          general:
+            children: {}
+          specific:
+            children: {}
+  requirements:
+    children:
+      functional:
+        children: {}
+      non_functional:
+        children: {}
+  architecture:
+    children:
+      components:
+        children: {}
+      data_model:
+        children: {}
+  implementation:
+    children:
+      timeline:
+        children: {}
+      resources:
+        children: {}
+  appendix:
+    children: {}

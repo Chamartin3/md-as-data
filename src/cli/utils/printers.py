@@ -7,8 +7,8 @@ from typing import Any
 from rich.console import Console
 from rich.syntax import Syntax
 
-from md_as_data import MarkdownDataDict, MarkdownFile
-from md_as_data.models import BlockData, Section
+from mddata import MarkdownDataDict, MarkdownFile
+from mddata.models import BlockData, Section
 
 
 class MarkdownPrinter:

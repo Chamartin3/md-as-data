@@ -1,0 +1,85 @@
+# Complex Template: Bug Report
+# Demonstrates parameter constraints, validation, and enums
+
+parameters:
+  title:
+    type: str
+    required: true
+    min: 5
+    max: 100
+    description: "Bug title (5-100 characters)"
+
+  severity:
+    type: str
+    required: true
+    enum:
+      - critical
+      - high
+      - medium
+      - low
+    description: "Bug severity level"
+
+  priority:
+    type: int
+    required: true
+    min: 1
+    max: 5
+    description: "Priority level (1-5)"
+
+  description:
+    type: str
+    required: true
+    min: 10
+    description: "Detailed bug description (minimum 10 characters)"
+
+  affected_versions:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "List of affected versions"
+
+  reporter:
+    type: str
+    required: false
+    default: "{env.USER}"
+    description: "Bug reporter (defaults to current user)"
+
+  reproduce_steps:
+    type: str
+    required: false
+    default: ""
+    description: "Steps to reproduce the bug"
+
+changes:
+  frontmatter:
+    title: "{title}"
+    severity: "{severity}"
+    priority: "{priority}"
+    reporter: "{reporter}"
+    date_reported: "{date}"
+    status: "open"
+    affected_versions: "{affected_versions}"
+
+  sections:
+    - id: "bugs"
+      content: |
+        ## [{severity}] {title}
+
+        **Priority**: {priority}/5
+        **Reporter**: {reporter}
+        **Date**: {date}
+        **Affected Versions**: {affected_versions}
+
+        ### Description
+        {description}
+
+        ### Steps to Reproduce
+        {reproduce_steps}
+
+        ### Status
+        - [ ] Investigate
+        - [ ] Fix
+        - [ ] Test
+        - [ ] Deploy
+      policy: append

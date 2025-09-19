@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "properties": {
+    "title": {
+      "type": "str",
+      "required": true,
+      "default": "Untitled Blog Post"
+    },
+    "author": {
+      "type": "str",
+      "required": true,
+      "default": "Anonymous"
+    },
+    "date": {
+      "type": "str",
+      "required": true,
+      "default": "2025-01-01"
+    },
+    "tags": {
+      "type": "list",
+      "required": false,
+      "default": []
+    },
+    "draft": {
+      "type": "bool",
+      "required": false,
+      "default": true
+    }
+  },
+  "sections": {
+    "introduction": {
+      "children": {}
+    },
+    "main_content": {
+      "children": {
+        "section_one": {},
+        "section_two": {}
+      }
+    },
+    "conclusion": {
+      "children": {}
+    }
+  }
+}

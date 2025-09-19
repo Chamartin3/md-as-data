@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from md_as_data.models import BlockType, HeadingLevel, SectionPolicy
+from mddata.models import BlockType, HeadingLevel, UpdatePolicy
 
 
 class OutputFormatChoice(str, Enum):
@@ -16,13 +16,13 @@ class OutputFormatChoice(str, Enum):
     YAML = "yaml"
 
 
-def section_policy_converter(value: str) -> SectionPolicy:
-    """Convert CLI input to SectionPolicy enum, supporting shorthand aliases."""
+def section_policy_converter(value: str) -> UpdatePolicy:
+    """Convert CLI input to UpdatePolicy enum, supporting shorthand aliases."""
     # Map shorthand to full enum values
     shorthand_map = {
-        "r": SectionPolicy.REPLACE,
-        "u": SectionPolicy.UPDATE,
-        "a": SectionPolicy.APPEND,
+        "r": UpdatePolicy.REPLACE,
+        "u": UpdatePolicy.UPDATE,
+        "a": UpdatePolicy.APPEND,
     }
 
     # Check if value is shorthand
@@ -31,9 +31,9 @@ def section_policy_converter(value: str) -> SectionPolicy:
 
     # Try to convert to enum directly
     try:
-        return SectionPolicy(value.lower())
+        return UpdatePolicy(value.lower())
     except ValueError:
-        valid_options = [p.value for p in SectionPolicy] + list(shorthand_map.keys())
+        valid_options = [p.value for p in UpdatePolicy] + list(shorthand_map.keys())
         raise typer.BadParameter(
             f"Invalid policy '{value}'. Valid options: {valid_options}"
         )
@@ -79,14 +79,14 @@ PrettyFlag = Annotated[bool, typer.Option("--pretty", "-p", help="Pretty-print o
 
 # Annotated types for use in CLI commands
 SectionPolicyArg = Annotated[
-    SectionPolicy,
+    UpdatePolicy,
     typer.Option(
         "--policy",
         "-p",
         help="Section policy: replace (r), append (a), update (u)",
         callback=lambda ctx, param, value: section_policy_converter(value)
         if value
-        else SectionPolicy.UPDATE,
+        else UpdatePolicy.UPDATE,
     ),
 ]
 

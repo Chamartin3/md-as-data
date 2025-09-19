@@ -1,6 +1,7 @@
 """CLI utilities package."""
 
 from .context import CLIContext, cli_context
+from .errors import CLIError, handle_cli_errors
 from .parsers import InputParser, ParseResult
 from .printers import MarkdownPrinter
 from .types import (
@@ -21,6 +22,8 @@ from .types import (
 __all__ = [
     "CLIContext",
     "cli_context",
+    "CLIError",
+    "handle_cli_errors",
     "InputParser",
     "ParseResult",
     "MarkdownPrinter",

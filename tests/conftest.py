@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from md_as_data import MarkdownFile
+from mddata import MarkdownFile
 
 
 @pytest.fixture
