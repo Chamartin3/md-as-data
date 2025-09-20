@@ -2,32 +2,189 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, NamedTuple, TypedDict, Union
 
 from .base import (
     BlockType,
     FrontmatterProperties,
-    FrontmatterPropertyValue,
     FrontmatterValue,
     HeadingLevel,
     UpdatePolicy,
 )
 
 
-class SectionUpdate(TypedDict, total=False):
-    """Structure for section update in batch operation."""
+@dataclass
+class SectionUpdate:
+    """Section update with validation and recursive structure support.
 
-    id: str  # Required
-    content: str  # Required
-    policy: str | UpdatePolicy  # Optional, defaults to UPDATE
+    This dataclass represents a section update operation that can:
+    - Create flat updates (backward compatible with BatchChanges)
+    - Create hierarchical updates (new nested structure)
+    - Validate section data
+    - Convert to SectionData format
+    - Support recursive child sections
+    """
 
+    # Required fields
+    id: str  # Section identifier
+    content: str | None = None  # New content (raw markdown) - optional for structured
 
-class BatchChanges(TypedDict, total=False):
-    """Structure for batch changes to document."""
+    # Update metadata
+    policy: UpdatePolicy = UpdatePolicy.UPDATE
 
-    frontmatter: dict[str, FrontmatterPropertyValue]
-    frontmatter_policy: str | UpdatePolicy
-    sections: list[SectionUpdate]
+    # Optional structured data (from SectionData)
+    title: str | None = None
+    level: int | None = None
+    path: str | None = None
+    blocks: list[BlockData] = field(default_factory=list)
+    children: list[SectionUpdate] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Validate section update after initialization."""
+        # Convert string policy to enum
+        if isinstance(self.policy, str):
+            self.policy = UpdatePolicy[self.policy.upper()]
+
+        # Validate that we have either content or structured data
+        if not self.content and not self.blocks and not self.children:
+            raise ValueError(
+                f"SectionUpdate '{self.id}' must have content, blocks, or children"
+            )
+
+        # Validate level if provided
+        if self.level is not None and not (1 <= self.level <= 6):
+            raise ValueError(f"Invalid heading level {self.level} (must be 1-6)")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary format (for JSON serialization).
+
+        Returns dict compatible with old SectionUpdate TypedDict format.
+        """
+        result: dict[str, Any] = {
+            "id": self.id,
+            "policy": (
+                self.policy.value
+                if isinstance(self.policy, UpdatePolicy)
+                else self.policy
+            ),
+        }
+
+        # Add content if present
+        if self.content is not None:
+            result["content"] = self.content
+
+        # Add optional structured fields if present
+        if self.title is not None:
+            result["title"] = self.title
+        if self.level is not None:
+            result["level"] = self.level
+        if self.path is not None:
+            result["path"] = self.path
+        if self.blocks:
+            result["blocks"] = self.blocks
+        if self.children:
+            # Recursively convert children
+            result["children"] = [child.to_dict() for child in self.children]
+
+        return result
+
+    def to_section_data(self) -> SectionData:
+        """Convert to SectionData format (for document structure).
+
+        Returns SectionData compatible with document model.
+        """
+        # Generate defaults if not provided
+        title = self.title or self._generate_title_from_id()
+        level = self.level or 1
+        path = self.path or self.id
+
+        section_data: SectionData = {
+            "id": self.id,
+            "title": title,
+            "level": level,
+            "path": path,
+            "blocks": self.blocks if self.blocks else None,
+            "children": (
+                [child.to_section_data() for child in self.children]
+                if self.children
+                else None
+            ),
+        }
+
+        return section_data
+
+    def _generate_title_from_id(self) -> str:
+        """Generate human-readable title from section ID."""
+        return self.id.replace("_", " ").replace("-", " ").title()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SectionUpdate:
+        """Create SectionUpdate from dictionary.
+
+        Supports both old flat format and new hierarchical format.
+        """
+        # Parse policy
+        policy_value = data.get("policy", "update")
+        if isinstance(policy_value, str):
+            policy = UpdatePolicy[policy_value.upper()]
+        else:
+            policy = policy_value
+
+        # Parse children recursively
+        children_data = data.get("children", [])
+        children = [cls.from_dict(child) for child in children_data]
+
+        return cls(
+            id=data["id"],
+            content=data.get("content"),
+            policy=policy,
+            title=data.get("title"),
+            level=data.get("level"),
+            path=data.get("path"),
+            blocks=data.get("blocks", []),
+            children=children,
+        )
+
+    def add_child(self, child: SectionUpdate) -> None:
+        """Add a child section update."""
+        self.children.append(child)
+
+    def has_children(self) -> bool:
+        """Check if section has child updates."""
+        return bool(self.children)
+
+    def is_hierarchical(self) -> bool:
+        """Check if this is a hierarchical update (has structured data)."""
+        return bool(self.title or self.level or self.blocks or self.children)
+
+    def is_flat(self) -> bool:
+        """Check if this is a flat update (just id and content)."""
+        return bool(self.content) and not self.is_hierarchical()
+
+    def validate(self) -> list[str]:
+        """Validate section update and return list of validation errors."""
+        errors: list[str] = []
+
+        # Validate ID
+        if not self.id or not self.id.strip():
+            errors.append("Section ID cannot be empty")
+
+        # Validate content requirement
+        if not self.content and not self.blocks and not self.children:
+            errors.append(f"Section '{self.id}' must have content, blocks, or children")
+
+        # Validate level
+        if self.level is not None and not (1 <= self.level <= 6):
+            errors.append(f"Invalid level {self.level} for section '{self.id}'")
+
+        # Recursively validate children
+        for i, child in enumerate(self.children):
+            child_errors = child.validate()
+            for error in child_errors:
+                errors.append(f"Child {i} ({child.id}): {error}")
+
+        return errors
 
 
 class BatchOperationResult(TypedDict):
@@ -352,9 +509,9 @@ class Section:
         """Validate section data structure."""
         required_fields = ["id", "title", "level", "path"]
 
-        for field in required_fields:
-            if field not in section_data:
-                raise ValueError(f"Missing required field: '{field}'")
+        for field_name in required_fields:
+            if field_name not in section_data:
+                raise ValueError(f"Missing required field: '{field_name}'")
 
         # Validate level
         if not isinstance(section_data["level"], int) or not (

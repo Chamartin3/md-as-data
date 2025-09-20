@@ -1,4 +1,8 @@
-"""Centralized data models for mddata."""
+"""Centralized data models for mddata.
+
+Schema models are now in a separate subpackage.
+Import them as: from mddata.models.schemas import ...
+"""
 
 # Base types and enums
 from .base import (
@@ -12,9 +16,18 @@ from .base import (
     UpdatePolicy,
 )
 
+# Data contracts (from contracts module)
+from .contracts import (
+    MarkdownDataDict,
+    MarkdownDataUpdate,
+    ParameterDefinition,
+    ParameterValue,
+    ResolvedParameters,
+    TemplateFile,
+)
+
 # Document structure models
 from .document import (
-    BatchChanges,
     BatchOperationResult,
     Block,
     BlockData,
@@ -24,7 +37,6 @@ from .document import (
     ContentInput,
     ContentTree,
     InputDataOptions,
-    MarkdownDataDict,
     ParsedMarkdownData,
     Section,
     SectionBlocksData,
@@ -36,37 +48,6 @@ from .document import (
     SectionsMap,
     SectionUpdate,
     TaskItemData,
-)
-
-# Schema models
-from .schema import (
-    CURRENT_SCHEMA_VERSION,
-    DocumentSchema,
-    DocumentSchemaObj,
-    PropertySchema,
-    PropertyValidationSchema,
-    PropertyValidationType,
-    SchemaFieldNames,
-    SchemaInferenceMode,
-    SectionSchema,
-    SectionValidationSchema,
-    ValidationLevel,
-    ValueType,
-)
-
-# Template models
-from .template import (
-    ParameterDefinition,
-    ParameterValue,
-    ResolvedParameters,
-    TemplateFile,
-)
-
-# Validation result models
-from .validation import (
-    ValidationIssue,
-    ValidationIssueTypes,
-    ValidationResult,
 )
 
 __all__ = [
@@ -95,31 +76,14 @@ __all__ = [
     "InputDataOptions",
     "ContentTree",
     "ParsedMarkdownData",
-    "MarkdownDataDict",
     "SectionInputData",
     "SectionContentData",
     "SectionBlocksData",
     "SectionUpdate",
-    "BatchChanges",
     "BatchOperationResult",
-    # Schema models
-    "CURRENT_SCHEMA_VERSION",
-    "SchemaFieldNames",
-    "SchemaInferenceMode",
-    "ValueType",
-    "ValidationLevel",
-    "PropertyValidationType",
-    "PropertyValidationSchema",
-    "PropertySchema",
-    "SectionValidationSchema",
-    "SectionSchema",
-    "DocumentSchema",
-    "DocumentSchemaObj",
-    # Validation models
-    "ValidationIssueTypes",
-    "ValidationIssue",
-    "ValidationResult",
-    # Template models
+    # Data contracts
+    "MarkdownDataDict",
+    "MarkdownDataUpdate",
     "ParameterDefinition",
     "ParameterValue",
     "ResolvedParameters",

@@ -1,71 +1,27 @@
 """Unified data contract models for mddata.
 
 This module consolidates the key data contract types used across the application:
-- BatchChanges: Batch modification operations
 - MarkdownDataDict: Complete document structure for JSON export
-- TemplateFile: Template-based document generation
+- MarkdownDataUpdate: Document update operations (replaces BatchChanges)
 - DocumentSchema: Schema validation definitions
 
-These TypedDict definitions serve as data contracts between different modules,
+These definitions serve as data contracts between different modules,
 ensuring consistent data exchange formats throughout the application.
 """
 
+from dataclasses import dataclass, field
 from typing import Any, TypeAlias, TypedDict
 
 from .base import (
     BlockType,
-    FrontmatterPropertyValue,
+    FrontmatterProperties,
     FrontmatterValue,
     ParameterType,
     UpdatePolicy,
 )
 
 # Re-export for convenience
-from .document import SectionData
-
-# =============================================================================
-# Batch Operations Data Contracts
-# =============================================================================
-
-
-class SectionUpdate(TypedDict, total=False):
-    """Structure for section update in batch operation.
-
-    Used to specify changes to a single section within a BatchChanges operation.
-    """
-
-    id: str  # Required - section identifier or path
-    content: str  # Required - new content for the section
-    policy: str | UpdatePolicy  # Optional - update policy (defaults to UPDATE)
-
-
-class BatchChanges(TypedDict, total=False):
-    """Structure for batch changes to document.
-
-    Enables atomic updates to multiple document parts (frontmatter and sections)
-    in a single operation. Used by CLI modify from-json and Python API.
-    """
-
-    frontmatter: dict[str, FrontmatterPropertyValue]  # Properties to update
-    frontmatter_policy: str | UpdatePolicy  # How to apply frontmatter updates
-    sections: list[SectionUpdate]  # Section updates to apply
-
-
-# =============================================================================
-# Document Export Data Contracts
-# =============================================================================
-
-
-class MarkdownDataDict(TypedDict):
-    """Complete document structure for JSON/YAML export.
-
-    This is the canonical serialization format for markdown documents,
-    used by extract commands and API export methods.
-    """
-
-    frontmatter: dict[str, FrontmatterPropertyValue]
-    content: SectionData  # Root section with complete hierarchy
-
+from .document import SectionData, SectionUpdate
 
 # =============================================================================
 # Template Data Contracts
@@ -93,16 +49,145 @@ class ParameterDefinition(TypedDict, total=False):
     item_type: ParameterType  # Optional - type of array items
 
 
-class TemplateFile(TypedDict):
-    """Complete template file structure.
+# =============================================================================
+# Document Export Data Contracts
+# =============================================================================
 
-    A template file defines parameters and the changes to apply to a document
-    when those parameters are provided. Used for parameterized document generation.
+
+class MarkdownDataDict(TypedDict):
+    """Complete document structure for JSON/YAML export.
+
+    This is the canonical serialization format for markdown documents,
+    used by extract commands and API export methods.
     """
 
-    parameters: dict[str, ParameterDefinition]  # Parameter definitions by name
-    changes: BatchChanges  # Document changes to apply
+    frontmatter: FrontmatterProperties  # Document frontmatter properties
+    content: SectionData  # Root section with complete hierarchy
 
+
+# =============================================================================
+# Document Update Data Contracts
+# =============================================================================
+
+
+@dataclass
+class MarkdownDataUpdate:
+    """Document update operations with optional policies and parameters.
+
+    This dataclass composes MarkdownDataDict to provide update functionality
+    while minimizing duplication. It represents both simple updates (from JSON)
+    and parameterized templates.
+
+    Design Philosophy:
+    - Inherits structure from MarkdownDataDict through composition
+    - Adds update-specific metadata (policies, parameters)
+    - Supports both flat section lists (backward compat) and hierarchical content
+    - Replaces both BatchChanges and TemplateFile with single unified model
+
+    Backward Compatibility:
+    - Old BatchChanges JSON maps directly to this structure
+    - Optional parameters field makes templates just special cases
+    - Flat sections list maintained for backward compatibility
+    """
+
+    # Core document data (from MarkdownDataDict)
+    frontmatter: FrontmatterProperties = field(default_factory=dict)
+    content: SectionData | None = field(default=None)
+
+    # Update-specific metadata
+    frontmatter_policy: UpdatePolicy = UpdatePolicy.MERGE
+    parameters: dict[str, ParameterDefinition] = field(default_factory=dict)
+
+    # Backward compatibility: flat section list (legacy BatchChanges format)
+    sections: list[SectionUpdate] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON/YAML serialization."""
+        result: dict[str, Any] = {
+            "frontmatter": self.frontmatter,
+            "frontmatter_policy": (
+                self.frontmatter_policy.value
+                if isinstance(self.frontmatter_policy, UpdatePolicy)
+                else self.frontmatter_policy
+            ),
+        }
+
+        if self.content:
+            result["content"] = self.content
+
+        if self.sections:
+            # Convert SectionUpdate dataclasses to dicts
+            result["sections"] = [
+                section.to_dict() if hasattr(section, "to_dict") else section
+                for section in self.sections
+            ]
+
+        if self.parameters:
+            result["parameters"] = self.parameters
+
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MarkdownDataUpdate":
+        """Create from dictionary (JSON/YAML deserialization).
+
+        Supports both new format and legacy BatchChanges format.
+        """
+        # Parse policy
+        policy_value = data.get("frontmatter_policy", "merge")
+        if isinstance(policy_value, str):
+            policy = UpdatePolicy[policy_value.upper()]
+        else:
+            policy = policy_value
+
+        # Parse sections - convert dicts to SectionUpdate dataclasses
+        sections_data = data.get("sections", [])
+        sections = [
+            SectionUpdate.from_dict(section) if isinstance(section, dict) else section
+            for section in sections_data
+        ]
+
+        return cls(
+            frontmatter=data.get("frontmatter", {}),
+            content=data.get("content"),
+            frontmatter_policy=policy,
+            parameters=data.get("parameters", {}),
+            sections=sections,
+        )
+
+    def as_markdown_dict(self) -> MarkdownDataDict:
+        """Convert to MarkdownDataDict (for document export).
+
+        Only includes core document structure, strips update metadata.
+        """
+        if not self.content:
+            raise ValueError("Cannot convert to MarkdownDataDict without content")
+
+        return {
+            "frontmatter": self.frontmatter,
+            "content": self.content,
+        }
+
+    def is_template(self) -> bool:
+        """Check if this update has parameters (is a template)."""
+        return bool(self.parameters)
+
+    def has_hierarchical_content(self) -> bool:
+        """Check if using new hierarchical content format."""
+        return self.content is not None
+
+    def has_flat_sections(self) -> bool:
+        """Check if using legacy flat sections format."""
+        return bool(self.sections)
+
+
+# =============================================================================
+# Template Type Aliases (Backward Compatibility)
+# =============================================================================
+
+# Templates are just MarkdownDataUpdate instances with parameters
+# This alias maintains backward compatibility for existing code
+TemplateFile: TypeAlias = MarkdownDataUpdate
 
 # Type alias for resolved parameter values
 ResolvedParameters: TypeAlias = dict[str, ParameterValue]
