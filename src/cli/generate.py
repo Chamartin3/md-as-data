@@ -5,13 +5,12 @@ from typing import Annotated
 import typer
 
 from mddata import MarkdownFile
-from mddata.models import DocumentSchema, MarkdownDataDict
+from mddata.models import MarkdownDataDict
+from mddata.models.schemas import DocumentSchema
+from mddata.schema import SchemaValidationError, load_schema, validate_schema_structure
 from mddata.utils import (
     JSONDataError,
-    SchemaValidationError,
     load_markdown_data_dict,
-    load_schema,
-    validate_schema_structure,
 )
 
 from .utils import (

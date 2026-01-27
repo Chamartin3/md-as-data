@@ -2,18 +2,20 @@
 
 import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 
 from mddata.models import UpdatePolicy
-from mddata.templates.computed import resolve_computed_params
-from mddata.templates.engine import load_template, load_template_from_stdin
-from mddata.templates.parameters import parse_cli_params
-from mddata.templates.substitution import substitute_in_dict, substitute_placeholders
-from mddata.utils import JSONDataError, load_json
+from mddata.utils import DataLoadError, load_data_update
 
-from .utils import InputParser, MarkdownPrinter, cli_context, section_policy_converter
+from .utils import (
+    InputParser,
+    MarkdownPrinter,
+    cli_context,
+    data_format_converter,
+    section_policy_converter,
+)
 
 app = typer.Typer(
     name="modify",
@@ -120,60 +122,6 @@ def set_section(
         raise typer.Exit(1)
 
 
-@app.command("from-json")
-def from_json(
-    file_path: FilePathArg,
-    source: Annotated[str, typer.Argument(help="JSON file path or '-' for stdin")],
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", "-n", help="Show changes without applying")
-    ] = False,
-) -> None:
-    """Apply changes from JSON file or stdin."""
-    md_file = cli_context.load_file_for_command(file_path)
-    printer = MarkdownPrinter(cli_context.console)
-
-    try:
-        # Load JSON data using centralized loader
-        try:
-            json_data = load_json(source)
-        except JSONDataError as e:
-            printer.print_error(str(e))
-            raise typer.Exit(1)
-
-        if dry_run:
-            printer.print_success(f"Dry run - would apply JSON changes from {source}")
-            print(json.dumps(json_data, indent=2))
-            return
-
-        # Apply changes using core functionality
-        result = md_file.mddata.apply_batch_changes(json_data)
-
-        # Report warnings
-        for warning in result["warnings"]:
-            printer.print_warning(warning)
-
-        # Report errors
-        for error in result["errors"]:
-            printer.print_error(error)
-
-        if result["success"] and result["changes_count"] > 0:
-            md_file.save()
-            printer.print_success(
-                f"Applied {result['changes_count']} changes from {source} "
-                f"({result['frontmatter_changes']} frontmatter, "
-                f"{result['section_changes']} sections)"
-            )
-        elif result["changes_count"] == 0:
-            printer.print_warning("No valid changes found in JSON data")
-        else:
-            printer.print_error("Batch operation failed")
-            raise typer.Exit(1)
-
-    except Exception as e:
-        printer.print_error(str(e))
-        raise typer.Exit(1)
-
-
 @app.command("remove-property")
 def remove_property(
     file_path: FilePathArg,
@@ -201,72 +149,95 @@ def remove_property(
         raise typer.Exit(1)
 
 
-@app.command("from-template")
-def from_template(
+@app.command("from-data")
+def from_data(
     file_path: FilePathArg,
-    template_path: Annotated[
-        str, typer.Argument(help="Template file or '-' for stdin")
-    ],
+    source: Annotated[str, typer.Argument(help="Data file path or '-' for stdin")],
+    format: Annotated[
+        str | None,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Data format: json or yaml (auto-detected from file extension)",
+        ),
+    ] = None,
     param: Annotated[
         list[str],
         typer.Option(
-            "-p", "--param", help="Parameter (KEY=VALUE, KEY=@file, KEY=-, KEY=@-)"
+            "-p",
+            "--param",
+            help="Template parameter (KEY=VALUE, KEY=@file, KEY=-, KEY=@-)",
         ),
     ] = [],
     params_file: Annotated[
         Path | None,
         typer.Option("--params", help="Load all parameters from JSON/YAML file"),
     ] = None,
-    format: Annotated[
-        str, typer.Option("--format", help="Template format for stdin (yaml|json)")
-    ] = "yaml",
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Show changes without applying")
     ] = False,
 ) -> None:
-    """Apply template with parameter substitution."""
+    """Apply changes from JSON/YAML file or template with unified interface.
+
+    This command replaces both 'from-json' and 'from-template' with a single
+    unified interface that auto-detects the data format and handles templates
+    with parameter substitution when applicable.
+
+    Data Formats:
+      - JSON batch changes (MarkdownDataUpdate format)
+      - YAML template files with optional parameters
+      - Auto-detection based on file extension (.json, .yaml, .yml)
+      - Override auto-detection with --format option
+
+    Template Parameters:
+      If the data file contains a 'parameters' section, you can provide values:
+      - Direct value: -p title="My Document"
+      - From file: -p content=@content.txt
+      - From stdin: -p description=- (interactive) or -p description=@- (piped)
+      - From params file: --params params.json
+
+    Examples:
+      # Apply JSON batch changes (auto-detected)
+      mddata modify from-data doc.md changes.json
+
+      # Apply YAML template with parameters (auto-detected)
+      mddata modify from-data doc.md template.yaml -p title="My Doc" -p author=John
+
+      # Load from stdin with explicit format
+      cat changes.json | mddata modify from-data doc.md - --format json
+
+      # Override auto-detection
+      mddata modify from-data doc.md data.txt --format yaml
+
+      # Use parameter file
+      mddata modify from-data doc.md template.yaml --params params.json
+    """
     md_file = cli_context.load_file_for_command(file_path)
     printer = MarkdownPrinter(cli_context.console)
 
     try:
-        # Load template
-        if template_path == "-":
-            template = load_template_from_stdin(format)
-        else:
-            template = load_template(template_path)
-
-        # Resolve computed parameters
-        computed_params = resolve_computed_params(template)
-
-        # Parse CLI parameters
-        resolved_params = parse_cli_params(
-            param,
-            template["parameters"],
-            computed_params,
-            params_file=str(params_file) if params_file else None,
-        )
-
-        # Resolve computed parameters in parameter values
-        final_params: dict[str, Any] = {}
-        for key, value in resolved_params.items():
-            if isinstance(value, str):
-                # Substitute computed params in the value
-                resolved_value = substitute_placeholders(value, resolved_params)
-                final_params[key] = resolved_value
-            else:
-                final_params[key] = value
-
-        # Substitute placeholders in template changes
-        substituted_changes = substitute_in_dict(template["changes"], final_params)
+        # Load data using unified loader
+        try:
+            # Convert string format to DataFormat enum
+            data_format = data_format_converter(format)
+            update = load_data_update(
+                source,
+                format=data_format,
+                cli_params=param if param else None,
+                params_file=str(params_file) if params_file else None,
+            )
+        except DataLoadError as e:
+            printer.print_error(str(e))
+            raise typer.Exit(1)
 
         if dry_run:
-            printer.print_success("Dry run - changes not applied")
-            printer.print_success("Template changes:")
-            print(json.dumps(substituted_changes, indent=2))
+            source_name = "stdin" if source == "-" else source
+            printer.print_success(f"Dry run - would apply changes from {source_name}")
+            print(json.dumps(update.to_dict(), indent=2))
             return
 
         # Apply changes using core functionality
-        result = md_file.mddata.apply_batch_changes(substituted_changes)
+        result = md_file.mddata.apply_batch_changes(update.to_dict())
 
         # Report warnings
         for warning in result["warnings"]:
@@ -278,16 +249,16 @@ def from_template(
 
         if result["success"] and result["changes_count"] > 0:
             md_file.save()
+            source_name = "stdin" if source == "-" else source
             printer.print_success(
-                f"Applied template '{template_path}' with "
-                f"{result['changes_count']} changes "
+                f"Applied {result['changes_count']} changes from {source_name} "
                 f"({result['frontmatter_changes']} frontmatter, "
                 f"{result['section_changes']} sections)"
             )
         elif result["changes_count"] == 0:
-            printer.print_warning("No valid changes found in template")
+            printer.print_warning("No valid changes found in data")
         else:
-            printer.print_error("Template application failed")
+            printer.print_error("Operation failed")
             raise typer.Exit(1)
 
     except Exception as e:

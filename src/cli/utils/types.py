@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from mddata.models import BlockType, HeadingLevel, UpdatePolicy
+from mddata.utils import DataFormat
 
 
 class OutputFormatChoice(str, Enum):
@@ -61,6 +62,19 @@ def heading_level_converter(value: str) -> HeadingLevel:
         ]
         raise typer.BadParameter(
             f"Invalid heading level '{value}'. Valid options: {valid_options}"
+        )
+
+
+def data_format_converter(value: str | None) -> DataFormat | None:
+    """Convert CLI input to DataFormat enum."""
+    if value is None:
+        return None
+    try:
+        return DataFormat(value.lower())
+    except ValueError:
+        valid_options = [df.value for df in DataFormat]
+        raise typer.BadParameter(
+            f"Invalid data format '{value}'. Valid options: {valid_options}"
         )
 
 

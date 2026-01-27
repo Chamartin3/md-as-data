@@ -15,6 +15,7 @@ from .types import (
     SectionPolicyArg,
     VerboseFlag,
     block_type_converter,
+    data_format_converter,
     heading_level_converter,
     section_policy_converter,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "section_policy_converter",
     "block_type_converter",
     "heading_level_converter",
+    "data_format_converter",
     "MarkdownFileArg",
     "OptionalOutputFileArg",
     "VerboseFlag",

@@ -6,11 +6,11 @@ from typing import Annotated
 
 import typer
 
-from mddata.models.schema import (
+from mddata.models.schemas import (
     CURRENT_SCHEMA_VERSION,
     SchemaFieldNames,
 )
-from mddata.validation import SchemaInferenceMode, generate_schema
+from mddata.schema import SchemaInferenceMode, generate_schema
 
 from .utils import MarkdownPrinter, cli_context
 from .utils.types import OutputFormatChoice
@@ -263,8 +263,8 @@ def validate_command(
         schema_data = _load_schema_file(schema_file)
 
         # Import here to avoid circular dependency
-        from mddata.models.schema import ValidationLevel
-        from mddata.validation import SchemaValidator
+        from mddata.models.schemas import ValidationLevel
+        from mddata.schema import SchemaValidator
 
         # Parse validation level if provided
         level = None
