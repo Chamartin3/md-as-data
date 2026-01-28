@@ -1,0 +1,586 @@
+"""Template filling engine - unified entry point for template substitution.
+
+This module consolidates all template filling logic into a single, cohesive interface.
+It handles parameter resolution, computed values, and placeholder substitution.
+
+Public API:
+- TemplateFiller: Main class for filling templates with parameters
+- ComputedParam: Enum of available computed parameters
+"""
+
+import json
+import os
+import re
+import sys
+from collections.abc import Callable
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import TypedDict
+
+import yaml
+
+from mddata.models import (
+    MarkdownDataUpdate,
+    ParameterDefinition,
+    ParameterType,
+    ParameterValue,
+    ResolvedParameters,
+)
+
+# ==================================================================
+# Type Definitions
+# ==================================================================
+
+
+class TemplateDict(TypedDict, total=False):
+    """Type-safe template dictionary structure.
+
+    This represents the serialized template structure used during
+    placeholder substitution operations.
+    """
+
+    frontmatter: dict[str, ParameterValue]
+    frontmatter_policy: str
+    content: dict[str, object] | None
+    sections: list[dict[str, object]]
+    parameters: dict[str, ParameterDefinition]
+
+
+class ArrayItemConstraints(TypedDict, total=False):
+    """Constraints for array item type validation."""
+
+    item_type: ParameterType
+
+
+class ParameterConstraints(TypedDict, total=False):
+    """Type-safe parameter constraints for validation."""
+
+    min: int | float
+    max: int | float
+    pattern: str
+
+
+# ==================================================================
+# Computed Parameter Enum
+# ==================================================================
+
+
+class ComputedParam(Enum):
+    """Available computed parameters with resolver functions.
+
+    Each parameter stores its resolver function that returns the computed value.
+    Parameters can be used in templates without explicit definition.
+    They are resolved at template fill time with current runtime values.
+
+    Usage:
+        value = ComputedParam.DATE.resolve()
+        value = ComputedParam.resolve_param("date")
+        is_computed = ComputedParam.is_computed("date")
+    """
+
+    DATE = ("date", lambda: datetime.now().date().isoformat())
+    TIME = ("time", lambda: datetime.now().time().isoformat())
+    NOW = ("now", lambda: datetime.now().isoformat())
+
+    def __init__(self, param_name: str, resolver: Callable[[], str]) -> None:
+        """Initialize computed parameter with name and resolver function."""
+        self.param_name = param_name
+        self.resolver = resolver
+
+    def resolve(self) -> str:
+        """Resolve this computed parameter to its current value."""
+        return self.resolver()
+
+    @classmethod
+    def from_name(cls, param_name: str) -> "ComputedParam | None":
+        """Get ComputedParam enum from parameter name."""
+        for param in cls:
+            if param.param_name == param_name:
+                return param
+        return None
+
+    @classmethod
+    def is_env_param(cls, param_name: str) -> bool:
+        """Check if parameter is an environment variable reference."""
+        return param_name.startswith("env.")
+
+    @classmethod
+    def resolve_env_param(cls, param_name: str) -> str | None:
+        """Resolve environment variable parameter."""
+        if not cls.is_env_param(param_name):
+            raise ValueError(f"Not an env parameter: {param_name}")
+
+        var_name = param_name[4:]  # Remove 'env.' prefix
+        return os.environ.get(var_name)
+
+    @classmethod
+    def is_computed(cls, param_name: str) -> bool:
+        """Check if parameter name is a computed parameter."""
+        return cls.is_env_param(param_name) or cls.from_name(param_name) is not None
+
+    @classmethod
+    def resolve_param(cls, param_name: str) -> str | None:
+        """Resolve any computed parameter by name."""
+        # Try environment variable
+        if cls.is_env_param(param_name):
+            return cls.resolve_env_param(param_name)
+
+        # Try enum member
+        param = cls.from_name(param_name)
+        if param:
+            return param.resolve()
+
+        raise ValueError(f"Unknown computed parameter: {param_name}")
+
+
+# ==================================================================
+# Placeholder Substitution
+# ==================================================================
+
+# Compiled regex patterns for performance
+PLACEHOLDER_PATTERN = re.compile(r"(?<!\\)\{([a-zA-Z_][a-zA-Z0-9_\.]*)\}")
+ESCAPE_PATTERN = re.compile(r"\\(\{)")
+
+
+def _format_value(value: ParameterValue) -> str:
+    """Format a parameter value for string substitution."""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    elif isinstance(value, bool):
+        return str(value).lower()
+    elif value is None:
+        return ""
+    else:
+        return str(value)
+
+
+def _substitute_placeholders(content: str, params: ResolvedParameters) -> str:
+    """Replace all placeholders with parameter values."""
+    if not isinstance(content, str):
+        return content
+
+    def replace_placeholder(match: re.Match[str]) -> str:
+        param_name = match.group(1)
+        if param_name not in params:
+            raise ValueError(f"Unknown placeholder: {{{param_name}}}")
+        value = params[param_name]
+        return _format_value(value)
+
+    # First substitute placeholders
+    result = PLACEHOLDER_PATTERN.sub(replace_placeholder, content)
+
+    # Then unescape literal braces
+    result = ESCAPE_PATTERN.sub(r"\1", result)
+
+    return result
+
+
+def _substitute_in_value(value: object, params: ResolvedParameters) -> object:
+    """Recursively substitute placeholders in any value type."""
+    if isinstance(value, str):
+        return _substitute_placeholders(value, params)
+    elif isinstance(value, dict):
+        return _substitute_in_dict(value, params)
+    elif isinstance(value, list):
+        return _substitute_in_list(value, params)
+    else:
+        return value
+
+
+def _substitute_in_dict(
+    data: dict[str, object], params: ResolvedParameters
+) -> dict[str, object]:
+    """Recursively substitute placeholders in dictionary."""
+    result: dict[str, object] = {}
+    for key, value in data.items():
+        result[key] = _substitute_in_value(value, params)
+    return result
+
+
+def _substitute_in_list(
+    items: list[object], params: ResolvedParameters
+) -> list[object]:
+    """Recursively substitute placeholders in list."""
+    result: list[object] = []
+    for item in items:
+        result.append(_substitute_in_value(item, params))
+    return result
+
+
+# ==================================================================
+# Computed Parameters
+# ==================================================================
+
+
+def _extract_computed_params(content: str) -> set[str]:
+    """Extract all computed parameter references from content."""
+    pattern = r"\{([^}]+)\}"
+    matches = re.findall(pattern, content)
+    return set(matches)
+
+
+def _extract_from_value(value: object, accumulator: set[str]) -> None:
+    """Recursively extract computed params from any value type."""
+    if isinstance(value, str):
+        accumulator.update(_extract_computed_params(value))
+    elif isinstance(value, dict):
+        _extract_from_dict(value, accumulator)
+    elif isinstance(value, list):
+        _extract_from_list(value, accumulator)
+
+
+def _extract_from_dict(data: dict[str, object], accumulator: set[str]) -> None:
+    """Recursively extract computed params from dictionary."""
+    for value in data.values():
+        _extract_from_value(value, accumulator)
+
+
+def _extract_from_list(items: list[object], accumulator: set[str]) -> None:
+    """Recursively extract computed params from list."""
+    for item in items:
+        _extract_from_value(item, accumulator)
+
+
+def _resolve_computed_params(
+    template: MarkdownDataUpdate,
+) -> ResolvedParameters:
+    """Resolve all computed parameters in template using enum-based resolution."""
+    computed_values: dict[str, ParameterValue] = {}
+    all_computed: set[str] = set()
+
+    # Check parameters section
+    for param_def in template.parameters.values():
+        default = param_def.get("default")
+        if default and isinstance(default, str):
+            all_computed.update(_extract_computed_params(default))
+
+    # Check template data by converting to dict
+    template_dict = template.to_dict()
+
+    # Extract from frontmatter
+    if frontmatter := template_dict.get("frontmatter"):
+        if isinstance(frontmatter, dict):
+            _extract_from_dict(frontmatter, all_computed)
+
+    # Extract from sections
+    if sections := template_dict.get("sections"):
+        if isinstance(sections, list):
+            _extract_from_list(sections, all_computed)
+
+    # Extract from hierarchical content
+    if content := template_dict.get("content"):
+        if isinstance(content, dict):
+            _extract_from_dict(content, all_computed)
+
+    # Resolve each computed param using enum
+    for param in all_computed:
+        if ComputedParam.is_computed(param):
+            try:
+                value = ComputedParam.resolve_param(param)
+                computed_values[param] = value
+            except ValueError:
+                # Skip unknown computed params (they might be user-defined params)
+                pass
+
+    return computed_values
+
+
+# ==================================================================
+# Parameter Parsing
+# ==================================================================
+
+
+def _parse_param_value(value: str, param_def: ParameterDefinition) -> ParameterValue:
+    """Parse single parameter value with type coercion."""
+    param_type = param_def["type"]
+
+    if param_type == ParameterType.STR:
+        return str(value)
+    elif param_type == ParameterType.INT:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"Cannot convert '{value}' to integer")
+    elif param_type == ParameterType.FLOAT:
+        try:
+            return float(value)
+        except ValueError:
+            raise ValueError(f"Cannot convert '{value}' to float")
+    elif param_type == ParameterType.BOOL:
+        if value.lower() in ("true", "1", "yes", "on"):
+            return True
+        elif value.lower() in ("false", "0", "no", "off"):
+            return False
+        else:
+            raise ValueError(f"Cannot convert '{value}' to boolean")
+    elif param_type == ParameterType.DATE:
+        return str(value)
+    elif param_type == ParameterType.ARRAY:
+        return _parse_array_param(value, param_def.get("item_type"))
+    else:
+        raise ValueError(f"Unsupported parameter type: {param_type}")
+
+
+def _parse_array_param(value: str, item_type: ParameterType | None) -> list[str]:
+    """Parse JSON array parameter with item type validation.
+
+    Returns list[str] to match ParameterValue type definition.
+    Mixed-type arrays are converted to strings.
+    """
+    try:
+        parsed = json.loads(value)
+        if not isinstance(parsed, list):
+            raise ValueError(f"Expected JSON array, got {type(parsed)}")
+
+        # Validate item types if specified
+        if item_type:
+            for i, item in enumerate(parsed):
+                if item_type == ParameterType.STR and not isinstance(item, str):
+                    raise ValueError(f"Array item {i} must be string")
+                elif item_type == ParameterType.INT and not isinstance(item, int):
+                    raise ValueError(f"Array item {i} must be integer")
+                elif item_type == ParameterType.FLOAT and not isinstance(
+                    item, (int, float)
+                ):
+                    raise ValueError(f"Array item {i} must be number")
+                elif item_type == ParameterType.BOOL and not isinstance(item, bool):
+                    raise ValueError(f"Array item {i} must be boolean")
+
+        # Convert all items to strings for type safety
+        # ParameterValue only supports list[str]
+        return [str(item) for item in parsed]
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON array: {e}")
+
+
+def _validate_param_constraints(
+    value: ParameterValue, param_def: ParameterDefinition
+) -> None:
+    """Validate parameter against constraints (min, max, pattern)."""
+    # Min constraint
+    min_val = param_def.get("min")
+    if min_val is not None:
+        if isinstance(value, (int, float)) and value < min_val:
+            raise ValueError(f"Value {value} is less than minimum {min_val}")
+        elif isinstance(value, str) and len(value) < min_val:
+            raise ValueError(f"String length is less than minimum {min_val}")
+
+    # Max constraint
+    max_val = param_def.get("max")
+    if max_val is not None:
+        if isinstance(value, (int, float)) and value > max_val:
+            raise ValueError(f"Value {value} is greater than maximum {max_val}")
+        elif isinstance(value, str) and len(value) > max_val:
+            raise ValueError(f"String length is greater than maximum {max_val}")
+
+    # Pattern constraint
+    pattern = param_def.get("pattern")
+    if pattern and isinstance(value, str):
+        if not re.match(pattern, value):
+            raise ValueError(f"Value does not match pattern '{pattern}'")
+
+
+def _load_params_from_file(filepath: str) -> dict[str, ParameterValue]:
+    """Load parameters from JSON/YAML file."""
+    if not Path(filepath).exists():
+        raise FileNotFoundError(f"Parameter file not found: {filepath}")
+
+    suffix = Path(filepath).suffix.lower()
+    file_content: dict[str, ParameterValue]
+
+    if suffix == ".json":
+        with open(filepath, encoding="utf-8") as f:
+            file_content = json.load(f)
+    elif suffix in (".yaml", ".yml"):
+        with open(filepath, encoding="utf-8") as f:
+            file_content = yaml.safe_load(f)
+    else:
+        raise ValueError(f"Unsupported parameter file format: {suffix}")
+
+    return file_content
+
+
+def _read_param_from_file(filepath: str) -> str:
+    """Read parameter value from file (@filepath syntax)."""
+    if not Path(filepath).exists():
+        raise FileNotFoundError(f"Parameter file not found: {filepath}")
+
+    with open(filepath, encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _read_param_from_stdin(interactive: bool = False) -> str:
+    """Read parameter from stdin (- for interactive, @- for piped)."""
+    if interactive:
+        print("Enter parameter value (Ctrl+D to finish):", file=sys.stderr)
+        return input().strip()
+    else:
+        return sys.stdin.read().strip()
+
+
+def _parse_cli_params(
+    params: list[str],
+    definitions: dict[str, ParameterDefinition],
+    computed: ResolvedParameters,
+    params_file: str | None = None,
+) -> ResolvedParameters:
+    """Parse and validate CLI parameters with precedence."""
+    resolved_values: dict[str, ParameterValue] = {}
+
+    # Start with computed parameters (lowest precedence)
+    resolved_values.update(computed)
+
+    # Add template defaults (next precedence level)
+    for key, param_def in definitions.items():
+        default = param_def.get("default")
+        if default is not None and key not in resolved_values:
+            resolved_values[key] = default
+
+    # Load from params file if specified
+    if params_file:
+        file_params = _load_params_from_file(params_file)
+        resolved_values.update(file_params)
+
+    # Track stdin usage to prevent multiple consumption
+    stdin_used = False
+
+    # Parse CLI parameters (highest precedence)
+    for param_str in params:
+        if "=" not in param_str:
+            raise ValueError(f"Invalid parameter format: {param_str}")
+
+        key, value_spec = param_str.split("=", 1)
+
+        if key not in definitions:
+            raise ValueError(f"Unknown parameter: {key}")
+
+        param_def = definitions[key]
+
+        # Handle different value sources
+        raw_value: str
+        if value_spec.startswith("@"):
+            # From file or stdin
+            if value_spec == "@-":
+                if stdin_used:
+                    raise ValueError("Cannot use stdin for multiple parameters")
+                stdin_used = True
+                raw_value = _read_param_from_stdin(interactive=False)
+            else:
+                filepath = value_spec[1:]  # Remove @
+                raw_value = _read_param_from_file(filepath)
+        elif value_spec == "-":
+            # Interactive stdin
+            if stdin_used:
+                raise ValueError("Cannot use stdin for multiple parameters")
+            stdin_used = True
+            raw_value = _read_param_from_stdin(interactive=True)
+        else:
+            # Direct value
+            raw_value = value_spec
+
+        # Parse and validate
+        parsed_value = _parse_param_value(raw_value, param_def)
+        _validate_param_constraints(parsed_value, param_def)
+        resolved_values[key] = parsed_value
+
+    # Check required parameters
+    for key, param_def in definitions.items():
+        if param_def.get("required", False) and key not in resolved_values:
+            raise ValueError(f"Required parameter '{key}' is not provided")
+
+    return resolved_values
+
+
+# ==================================================================
+# Public API
+# ==================================================================
+
+
+class TemplateFiller:
+    """Template parameter resolution and substitution engine.
+
+    Encapsulates the complete template filling workflow:
+    1. Resolve computed parameters (date, time, env vars)
+    2. Parse and validate CLI parameters
+    3. Substitute placeholders in template content
+    4. Return filled MarkdownDataUpdate ready for application
+
+    Usage:
+        template = load_template('template.yaml')
+        filler = TemplateFiller(template)
+        filled = filler.fill(cli_params=['title=My Doc'])
+        doc.mddata.apply_batch_changes(filled.to_dict())
+    """
+
+    def __init__(self, template: MarkdownDataUpdate) -> None:
+        """Initialize filler with template."""
+        if not isinstance(template, MarkdownDataUpdate):
+            raise TypeError("Template must be MarkdownDataUpdate instance")
+
+        self.template = template
+        self._computed_params: ResolvedParameters | None = None
+
+    def fill(
+        self,
+        cli_params: list[str] | None = None,
+        params_file: str | None = None,
+    ) -> MarkdownDataUpdate:
+        """Fill template with parameters and return ready-to-apply update."""
+        # Resolve all parameters with proper precedence
+        resolved_params = self._resolve_all_parameters(cli_params or [], params_file)
+
+        # Convert template to dict for substitution
+        template_dict = self.template.to_dict()
+
+        # Substitute placeholders recursively
+        substituted_dict = _substitute_in_dict(template_dict, resolved_params)
+
+        # Create filled MarkdownDataUpdate from substituted dict
+        filled_update = MarkdownDataUpdate.from_dict(substituted_dict)
+
+        return filled_update
+
+    def _resolve_all_parameters(
+        self,
+        cli_params: list[str],
+        params_file: str | None,
+    ) -> ResolvedParameters:
+        """Resolve parameters with proper precedence."""
+        # Get computed parameters (cache for efficiency)
+        if self._computed_params is None:
+            self._computed_params = _resolve_computed_params(self.template)
+
+        computed = self._computed_params
+
+        # Parse CLI params with precedence handling built-in
+        resolved = _parse_cli_params(
+            cli_params,
+            self.template.parameters,
+            computed,
+            params_file=params_file,
+        )
+
+        # Resolve computed placeholders in parameter values themselves
+        final_params: dict[str, ParameterValue] = {}
+        for key, value in resolved.items():
+            if isinstance(value, str):
+                resolved_value = _substitute_placeholders(value, resolved)
+                final_params[key] = resolved_value
+            else:
+                final_params[key] = value
+
+        return final_params
+
+    def get_computed_parameters(self) -> ResolvedParameters:
+        """Get computed parameters (date, time, env vars) for this template."""
+        if self._computed_params is None:
+            self._computed_params = _resolve_computed_params(self.template)
+        return self._computed_params.copy()
+
+    def get_parameter_info(self) -> dict[str, object]:
+        """Get information about template parameters."""
+        return {
+            "definitions": self.template.parameters,
+            "computed": self.get_computed_parameters(),
+        }
