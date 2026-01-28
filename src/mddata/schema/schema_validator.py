@@ -2,13 +2,13 @@
 
 from typing import Any
 
-from ..models.schema import (
+from ..models.schemas import (
     CURRENT_SCHEMA_VERSION,
     DocumentSchema,
     DocumentSchemaObj,
     ValidationLevel,
 )
-from ..models.validation import (
+from ..models.schemas.validation import (
     ValidationIssue,
     ValidationResult,
 )

@@ -3,12 +3,12 @@
 from typing import Any
 
 from ..models import BlockType, Section
-from ..models.schema import (
+from ..models.schemas import (
     SchemaFieldNames,
     SectionSchema,
     ValidationLevel,
 )
-from ..models.validation import (
+from ..models.schemas.validation import (
     ValidationIssue,
     ValidationIssueTypes,
 )

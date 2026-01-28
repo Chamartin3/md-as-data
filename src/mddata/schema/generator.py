@@ -10,7 +10,7 @@ from ..models import (
     ParsedMarkdownData,
     Section,
 )
-from ..models.schema import (
+from ..models.schemas import (
     CURRENT_SCHEMA_VERSION,
     DocumentSchema,
     PropertySchema,
