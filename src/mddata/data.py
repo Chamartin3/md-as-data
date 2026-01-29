@@ -5,9 +5,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict, TypeVar, cast, get_type_hints
 
-from .generation.template import generate_template
+# Removed: from .generation.template import generate_template
+# Now using schema_to_markdown_dict from validation module
 from .models import (
-    BatchChanges,
     BatchOperationResult,
     BlocksData,
     BlocksQuery,
@@ -17,6 +17,7 @@ from .models import (
     FrontmatterPropertyValue,
     FrontmatterValue,
     MarkdownDataDict,
+    MarkdownDataUpdate,
     ParsedMarkdownData,
     Section,
     SectionData,
@@ -25,9 +26,10 @@ from .models import (
     TaskItemData,
     UpdatePolicy,
 )
+from .models.schemas import DocumentSchema, ValidationLevel
 from .processor import MarkdownProcessor
+from .schema import SchemaValidator
 from .tasklist import TaskList
-from .validation import DocumentSchema, SchemaValidator, ValidationLevel
 
 
 class UpdateInputDict(TypedDict, total=False):
@@ -543,15 +545,21 @@ class MarkdownData:
                 # If not a list, treat as replace
                 self._frontmatter[key] = new_value
 
-    def apply_batch_changes(self, changes: BatchChanges) -> BatchOperationResult:
+    def apply_batch_changes(
+        self, changes: MarkdownDataUpdate | dict[str, Any]
+    ) -> BatchOperationResult:
         """Apply multiple changes from structured data.
 
         Args:
-            changes: Dictionary containing frontmatter and section updates
+            changes: MarkdownDataUpdate instance or dictionary containing frontmatter
+                    and section updates
 
         Returns:
             BatchOperationResult with success status and details
         """
+        # Convert MarkdownDataUpdate to dict if needed
+        if isinstance(changes, MarkdownDataUpdate):
+            changes = changes.to_dict()
         result: BatchOperationResult = {
             "success": True,
             "changes_count": 0,
@@ -793,6 +801,9 @@ class MarkdownData:
         """
         Create a new MarkdownData instance from a schema.
 
+        Uses the standard workflow:
+        Schema -> MarkdownDataDict -> ParsedMarkdownData -> MarkdownData
+
         Args:
             schema: DocumentSchema typed dictionary defining document structure
 
@@ -800,11 +811,20 @@ class MarkdownData:
             MarkdownData instance with template content
 
         Example:
-            >>> from mddata.utils import load_schema
+            >>> from mddata.schema import load_schema
             >>> schema = load_schema('blog_schema.yaml')
             >>> doc = MarkdownData.from_schema(schema)
             >>> doc.title = "My First Post"
             >>> doc.save_to_file('post.md')
         """
-        document = generate_template(schema)
-        return cls(document, schema=schema)
+        from .schema import schema_to_markdown_dict
+
+        # Convert schema to MarkdownDataDict
+        data_dict = schema_to_markdown_dict(schema)
+
+        # Convert to ParsedMarkdownData using MarkdownFile.from_dict
+        # (this reconstructs ContentTree from SectionData)
+        from .source import MarkdownFile
+
+        temp_file = MarkdownFile.from_dict(data_dict, schema=schema)
+        return temp_file.mddata

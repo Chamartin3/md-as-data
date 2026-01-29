@@ -26,25 +26,26 @@ from .models import (
     UpdatePolicy,  # Unified policy enum
 )
 
+# Schema validation functionality
+from .models.schemas import (
+    DocumentSchema,
+    PropertySchema,
+    SectionSchema,
+    ValidationLevel,
+)
+
 # Advanced processing (for custom handlers and extensions)
 from .processor import (
     MarkdownProcessor,
     TokenType,
 )
+
+# Schema validation and generation
+from .schema import SchemaValidator, generate_schema
 from .source import MarkdownFile
 
 # Task list functionality
 from .tasklist import TaskList
-
-# Schema validation functionality
-from .validation import (
-    DocumentSchema,
-    PropertySchema,
-    SchemaValidator,
-    SectionSchema,
-    ValidationLevel,
-    generate_schema,
-)
 
 # Public API - Core functionality
 __all__ = [

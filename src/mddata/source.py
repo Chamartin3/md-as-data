@@ -6,11 +6,11 @@ from pathlib import Path
 from .data import MarkdownData
 from .models import (
     ContentTree,
-    DocumentSchema,
     MarkdownDataDict,
     ParsedMarkdownData,
     Section,
 )
+from .models.schemas import DocumentSchema
 from .processor import MarkdownProcessor
 
 
@@ -150,6 +150,9 @@ class MarkdownFile:
         """
         Create a new markdown file from a schema template.
 
+        This method uses the standard workflow:
+        Schema -> MarkdownDataDict -> MarkdownFile
+
         Args:
             schema: DocumentSchema typed dictionary defining document structure
             filepath: Path where file will be created
@@ -162,7 +165,7 @@ class MarkdownFile:
             FileExistsError: If file exists and overwrite=False
 
         Example:
-            >>> from mddata.utils import load_schema
+            >>> from mddata.schema import load_schema
             >>> schema = load_schema('schema.yaml')
             >>> doc = MarkdownFile.create_from_schema(
             ...     schema,
@@ -171,20 +174,18 @@ class MarkdownFile:
             >>> doc.mddata.title = "New Document"
             >>> doc.save()
         """
+        from .schema import schema_to_markdown_dict
+
         # Check file existence
         path = Path(filepath)
         if path.exists() and not overwrite:
             raise FileExistsError(f"File already exists: {filepath}")
 
-        # Generate template
-        mddata = MarkdownData.from_schema(schema)
+        # Convert schema to MarkdownDataDict
+        data_dict = schema_to_markdown_dict(schema)
 
-        # Serialize to markdown text
-        processor = MarkdownProcessor()
-        markdown_text = processor.serialize_document(mddata.to_dict())
-
-        # Create instance with generated content
-        instance = cls(filepath, raw_content=markdown_text)
+        # Use standard from_dict workflow
+        instance = cls.from_dict(data_dict, filepath=filepath, schema=schema)
 
         # Save immediately
         instance.save()
