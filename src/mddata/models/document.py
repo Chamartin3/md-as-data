@@ -214,11 +214,13 @@ class BlocksQuery(NamedTuple):
     total: int  # Total blocks before filtering
 
 
-class TaskItemData(TypedDict):
+class TaskItemData(TypedDict, total=False):
     """Individual task item with status metadata."""
 
     content: str  # Task text content without checkbox
     symbol: str  # Checkbox character (x, space, !, ~, ?, etc.)
+    uid: str  # Short unique identifier for CLI reference
+    subtasks: list[TaskItemData]  # Optional subtasks
 
 
 # Public input type for external API (simplified)

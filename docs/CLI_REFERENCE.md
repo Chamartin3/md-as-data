@@ -12,7 +12,7 @@ The `file_path` is required for most commands and appears after the command/subc
 - A single markdown file: `document.md`
 - A directory path: `./docs/` (for schema generation only)
 
-The `generate` command is a top-level command that doesn't require a file path since it creates new files from data or schema sources.
+The `write` command is a unified command that doesn't require a file path in all modes since it can create new files from data, modify existing files, or render to stdout.
 
 ---
 
@@ -149,128 +149,6 @@ mddata modify set-section document.md parent.child "New subsection"
 - Use dot-separated paths for nested sections: `introduction.overview`
 - Create new subsections automatically: `parent.new_child`
 
-### `modify from-json`
-
-Apply bulk changes from JSON file or stdin.
-
-```bash
-mddata modify from-json document.md changes.json
-mddata modify from-json document.md - < changes.json
-mddata modify from-json document.md changes.json --dry-run
-```
-
-**Arguments:**
-- `file_path`: Path to the markdown file
-- `source`: Path to JSON file containing changes (use `-` for stdin)
-
-**Options:**
-- `--dry-run`: Preview changes without saving
-
-**JSON Format:**
-```json
-{
-  "frontmatter": {
-    "title": "New Title",
-    "status": "published"
-  },
-  "sections": [
-    {
-      "id": "introduction",
-      "content": "Updated intro",
-      "policy": "replace"
-    }
-  ]
-}
-```
-
-### `modify from-template`
-
-Apply template with parameter substitution to create or modify documents.
-
-```bash
-# Basic template application
-mddata modify from-template document.md template.yaml \
-  -p title="My Document" \
-  -p author="John Doe"
-
-# Load parameters from file
-mddata modify from-template document.md template.yaml \
-  --params params.json
-
-# Mix parameter sources (CLI overrides file)
-mddata modify from-template document.md template.yaml \
-  --params base_params.json \
-  -p title="Override Title"
-
-# Load template from stdin
-cat template.yaml | mddata modify from-template document.md -
-
-# Parameter from files or stdin
-mddata modify from-template document.md template.yaml \
-  -p content=@content.txt \
-  -p password=- \
-  -p config=@config.json
-
-# Dry run to preview changes
-mddata modify from-template document.md template.yaml \
-  -p title="Test" \
-  --dry-run
-```
-
-**Arguments:**
-- `file_path`: Path to the markdown file to modify
-- `template_path`: Path to template file (JSON/YAML) or `-` for stdin
-
-**Options:**
-- `-p, --param KEY=VALUE`: Parameter value (KEY=VALUE, KEY=@file, KEY=-, KEY=@-)
-- `--params FILE`: Load all parameters from JSON/YAML file
-- `--format FORMAT`: Template format for stdin (yaml or json, default: yaml)
-- `-n, --dry-run`: Preview changes without applying them
-
-**Parameter Sources (Precedence Order):**
-1. **CLI parameters** (`-p key=value`) - highest precedence
-2. **Parameter file** (`--params file.json`) - medium precedence
-3. **Template defaults** - lower precedence
-4. **Computed parameters** (`{date}`, `{env.VAR}`, etc.) - lowest precedence
-
-**Parameter Value Formats:**
-- `key=value`: Direct string value
-- `key=@file.txt`: Load value from file
-- `key=-`: Interactive input from terminal
-- `key=@-`: Load value from piped stdin
-
-**Template Format:**
-Templates are JSON or YAML files with `parameters` and `changes` sections:
-
-```yaml
-parameters:
-  title:
-    type: str
-    required: true
-    description: "Document title"
-  author:
-    type: str
-    default: "Anonymous"
-  tags:
-    type: array
-    item_type: str
-
-changes:
-  frontmatter:
-    title: "{title}"
-    author: "{author}"
-    created: "{date}"
-  sections:
-    - id: "introduction"
-      content: "# {title}\n\nBy {author}"
-```
-
-**Computed Parameters:**
-- `{date}`: Current date (YYYY-MM-DD)
-- `{time}`: Current time (HH:MM:SS)
-- `{now}`: Current datetime (ISO 8601)
-- `{env.VAR_NAME}`: Environment variable value
-
 ---
 
 ## Extract Commands
@@ -328,19 +206,19 @@ mddata extract frontmatter document.md --format yaml
 
 ## Schema Commands
 
-Generate and validate schemas for document structure.
+Infer and validate schemas for document structure.
 
-### `schema generate`
+### `schema infer`
 
-Generate schema from single file or directory.
+Infer schema from single file or directory.
 
 ```bash
 # Single file
-mddata schema generate document.md --output schema.json
-mddata schema generate document.md --format yaml --output schema.yaml --pretty
+mddata schema infer document.md --output schema.json
+mddata schema infer document.md --format yaml --output schema.yaml --pretty
 
 # Directory (recursive)
-mddata schema generate ./docs/ --output docs_schema.json --pretty
+mddata schema infer ./docs/ --output docs_schema.json --pretty
 ```
 
 **Arguments:**
@@ -399,106 +277,128 @@ mddata schema info schema.yaml
 
 ---
 
-## Generate Command
+## Write Command
 
-Create new markdown files from structured data or schema templates.
+Unified command for creating, modifying, and rendering markdown files with intelligent auto-detection.
 
-### `generate`
+### `write`
 
-Unified command to generate markdown files from JSON data, schema templates, or both.
+Intelligent command that automatically detects operation mode based on inputs and target file existence.
+
+**Operation Modes:**
+- **CREATE**: Generate new file from data/template/schema (when output specified and target doesn't exist)
+- **MODIFY**: Update existing file with data changes (when target file exists)
+- **SCHEMA_TEMPLATE**: Generate template from schema only (schema only, output specified)
+- **STDOUT**: Render to stdout without creating files (data/schema provided, no output)
 
 ```bash
-# Generate from JSON data
-mddata generate --data data.json --output document.md
-mddata generate -d data.json -o document.md  # Short form
+# Create new file from data
+mddata write --data data.json --output new.md
 
-# Generate from stdin
-cat data.json | mddata generate --data - --output document.md
-echo '{"frontmatter": {"title": "New Doc"}, "content": {...}}' | mddata generate -d - -o new.md
+# Modify existing file
+mddata write --data changes.json existing.md
 
 # Generate template from schema
-mddata generate --schema schema.json --output template.md
-mddata generate -s schema.yaml -o template.md
+mddata write --schema schema.json --output template.md
 
-# Generate from data with schema validation (both parameters)
-mddata generate --data data.json --schema schema.json --output document.md
-mddata generate -d data.json -s schema.yaml -o document.md
+# Render to stdout
+mddata write --data data.json
 
-# Print to stdout (omit --output)
-mddata generate --data data.json
+# With template parameters
+mddata write --data template.yaml -p title="My Doc" --output result.md
+
+# From stdin
+cat data.json | mddata write --data - --output document.md
+
+# Dry run to preview changes
+mddata write --data changes.json existing.md --dry-run
 ```
 
+**Arguments:**
+- `target_file`: Target file to modify (for modify mode) or positional argument for data file
+
 **Options:**
-- `--schema FILE, -s FILE`: Path to schema file (JSON or YAML) for template generation
-- `--data FILE, -d FILE`: Path to JSON data file (use `-` for stdin, MarkdownDataDict format)
-- `--output FILE, -o FILE`: Output markdown file path (prints to stdout if omitted)
-- `--force, -F`: Force overwrite existing file if it exists
+- `--data FILE, -d FILE`: Path to data/template file (use `-` for stdin, JSON/YAML format)
+- `--schema FILE, -s FILE`: Path to schema file for validation/template generation
+- `--output FILE, -o FILE`: Output file path (required for create/schema_template modes)
+- `--format FORMAT, -f FORMAT`: Data format: json or yaml (default: auto-detect)
+- `--param KEY=VALUE, -p KEY=VALUE`: Template parameter value
+- `--params FILE`: Load parameters from JSON/YAML file
+- `--policy POLICY`: Merge policy: replace, update, merge, append (default: update)
+- `--force, -F`: Force overwrite existing files
+- `--dry-run, -n`: Preview changes without applying
 
 **Requirements:**
-- At least one of `--schema` or `--data` must be provided
-- When using `--schema` alone, `--output` is required
-- When using `--data` alone, `--output` is optional (defaults to stdout)
-- When using both, generates from data and validates against schema
+- At least one of `--data` or `--schema` must be provided
+- For MODIFY mode: target file must exist
+- For CREATE/SCHEMA_TEMPLATE modes: `--output` is required
+- For STDOUT mode: no output file, renders to console
 
-**JSON Data Format:**
+**Data Format:**
 
-The JSON data must match the `MarkdownDataDict` format (same as output from `extract json`):
+Supports both JSON and YAML formats. JSON data uses `MarkdownDataDict` format (same as `extract json` output):
 
 ```json
 {
   "frontmatter": {
     "title": "Document Title",
-    "author": "Author Name",
-    "date": "2025-10-21"
+    "author": "Author Name"
   },
   "content": {
-    "id": "",
-    "title": "",
-    "level": 0,
-    "path": "",
-    "blocks": [],
     "children": [
       {
         "id": "introduction",
         "title": "Introduction",
-        "level": 1,
-        "path": "introduction",
         "blocks": [
           {
-            "section_id": "introduction",
             "type": "paragraph",
-            "content": "This is the introduction paragraph.",
-            "metadata": {}
+            "content": "Introduction content"
           }
-        ],
-        "children": []
+        ]
       }
     ]
   }
 }
 ```
 
-**Schema Template Behavior:**
+**Template Parameters:**
 
-When using `--schema`, creates a markdown template with:
-- All required frontmatter properties set to default values or placeholders
-- Section structure matching the schema's section definitions
-- Placeholder content for each section
-- Proper heading levels based on section hierarchy
+Parameters can be provided via CLI, files, or computed values:
+
+```bash
+# CLI parameters
+mddata write --data template.yaml -p title="My Doc" -p author="John"
+
+# From parameter file
+mddata write --data template.yaml --params params.json
+
+# Computed parameters (automatic)
+# {date}, {time}, {now}, {env.VAR_NAME}
+```
+
+**Merge Policies:**
+- `update` (default): Merge content while preserving subsections
+- `replace`: Replace entire section content
+- `merge`: Deep merge data structures
+- `append`: Add content to existing sections
 
 **Examples:**
 
 ```bash
-# 1. Generate schema from existing document
-mddata schema generate document.md --output doc-schema.json --pretty
+# 1. Create from data
+mddata write --data document.json --output new.md
 
-# 2. Create new template from schema
-mddata generate --schema doc-schema.json --output new-document.md
+# 2. Modify existing file
+mddata write --data changes.json existing.md
 
-# 3. Generate from data and validate with schema
-mddata generate --data data.json --schema doc-schema.json --output validated.md
+# 3. Generate template from schema
+mddata write --schema schema.json --output template.md
 
-# Result: new-document.md with same structure as document.md
+# 4. With validation
+mddata write --data data.json --schema schema.json --output validated.md
+
+# 5. Template with parameters
+mddata write --data template.yaml -p title="Report" --output report.md
 ```
 
 ---
@@ -524,8 +424,8 @@ mddata extract json document.md --pretty --output updated.json
 ### Schema Validation Workflow
 
 ```bash
-# 1. Generate schema
-mddata schema generate document.md --output doc-schema.json --pretty
+# 1. Infer schema
+mddata schema infer document.md --output doc-schema.json --pretty
 
 # 2. Validate document
 mddata schema validate document.md doc-schema.json --verbose
@@ -555,31 +455,31 @@ cat > changes.json <<EOF
 EOF
 
 # Apply changes
-mddata modify from-json document.md changes.json
+mddata write --data changes.json document.md --output updated.md
 ```
 
-### Directory Schema Generation
+### Directory Schema Inference
 
 ```bash
-# Generate schema from all markdown files in a directory
-mddata schema generate ./docs/ --format yaml --output docs-schema.yaml --pretty
+# Infer schema from all markdown files in a directory
+mddata schema infer ./docs/ --format yaml --output docs-schema.yaml --pretty
 
 # Output shows file count:
 # Schema generated from 15 markdown files
 ```
 
-### Template Generation Workflow
+### Template Rendering Workflow
 
 ```bash
 # 1. Create schema from existing document
-mddata schema generate document.md --output doc-schema.json --pretty
+mddata schema infer document.md --output doc-schema.json --pretty
 
 # 2. Generate new markdown from schema template
-mddata generate --schema doc-schema.json --output new-doc.md
+mddata write --schema doc-schema.json --output new-doc.md
 
 # 3. Alternatively, extract existing doc and recreate from JSON
 mddata extract json document.md --pretty --output data.json
-mddata generate --data data.json --output recreated.md
+mddata write --data data.json --output recreated.md
 ```
 
 ### Round-Trip Data Workflow
@@ -591,8 +491,8 @@ mddata extract json document.md --pretty --output data.json
 # 2. Modify JSON externally (with scripts, jq, etc.)
 jq '.frontmatter.version = "2.0"' data.json > modified.json
 
-# 3. Generate new markdown from modified JSON
-mddata generate --data modified.json --output updated.md
+# 3. Create new markdown from modified JSON
+mddata write --data modified.json --output updated.md
 ```
 
 ---

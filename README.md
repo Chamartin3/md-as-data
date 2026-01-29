@@ -8,6 +8,7 @@ Transform markdown documents into structured data that you can navigate, query, 
 
 ## Features
 
+- **Unified write interface** - Single command for creating and modifying documents with intelligent auto-detection
 - **Parse markdown into structured objects** with hierarchical sections and typed blocks
 - **Dynamic property access** to frontmatter and content sections
 - **Path-based navigation** through document structure (`section.subsection.item`)
@@ -18,6 +19,7 @@ Transform markdown documents into structured data that you can navigate, query, 
 - **Type-safe API** with comprehensive TypedDict interfaces and NamedTuple returns
 - **Extensible parser** with custom token handlers
 - **Template system** with parameterized document generation and substitution
+- **Schema validation** - Generate and validate documents against schemas
 - **CLI and SDK** interfaces for different use cases
 
 ## Quick Start
@@ -130,47 +132,75 @@ doc.conclusion.summary = "Updated summary"
 
 ## CLI Usage
 
-### Parse to JSON
+### Create and Modify Documents
+
+The `write` command provides a unified interface for all document operations:
+
 ```bash
-# Parse entire document
-mdasdata parse document.md
+# Create new document from data
+mddata write --data document.json --output new.md
 
-# Pretty print with syntax highlighting
-mdasdata parse document.md --pretty
+# Modify existing document
+mddata write --data changes.json existing.md
 
-# Extract only frontmatter
-mdasdata parse document.md --frontmatter
+# Create from template with parameters
+mddata write --data template.yaml -p title="My Doc" -p author="John" --output doc.md
 
-# Extract only section structure
-mdasdata parse document.md --sections
+# Generate template from schema
+mddata write --schema schema.json --output template.md
 
-# Save to file
-mdasdata parse document.md --output parsed.json
+# Render to stdout for preview
+mddata write --data document.json
 ```
 
-### Document Info
+### Extract and Query Documents
+
 ```bash
-# Show document statistics
-mdasdata info document.md
+# Extract to JSON/YAML
+mddata extract json document.md --pretty --output data.json
+mddata extract yaml document.md --output data.yaml
+
+# Query document structure
+mddata info summary document.md
+mddata info sections document.md --paths
+mddata info properties document.md --verbose
+
+# Extract only frontmatter
+mddata extract frontmatter document.md --format yaml
+```
+
+### Granular Modifications
+
+```bash
+# Modify individual properties
+mddata modify set-property document.md title "New Title"
+mddata modify set-property document.md tags '["new", "tags"]' --json
+
+# Modify individual sections
+mddata modify set-section document.md intro "Updated content"
+mddata modify set-section document.md intro "Replace all" --policy replace
+
+# Remove properties
+mddata modify remove-property document.md draft
 ```
 
 ### Schema Validation
 
-Generate and validate document schemas in JSON or YAML format:
+Infer and validate document schemas in JSON or YAML format:
 
 ```bash
-# Generate schema in JSON format (default)
-mdasdata document.md schema generate --output doc-schema.json --pretty
+# Infer schema in JSON format (default)
+mddata schema infer document.md --output doc-schema.json --pretty
 
-# Generate schema in YAML format (better readability)
-mdasdata document.md schema generate --format yaml --output doc-schema.yaml
+# Infer schema in YAML format (better readability)
+mddata schema infer document.md --format yaml --output doc-schema.yaml
 
 # Validate document against schema (format auto-detected)
-mdasdata document.md schema validate doc-schema.json --verbose
-mdasdata document.md schema validate doc-schema.yaml --verbose
+mddata schema validate document.md doc-schema.json --verbose
+mddata schema validate document.md doc-schema.yaml --verbose
 
 # View schema information
-mdasdata document.md schema info doc-schema.json
+mddata schema info doc-schema.json
 ```
 
 **Format Compatibility:**
@@ -181,7 +211,7 @@ Both JSON and YAML formats are fully supported and interchangeable. Use YAML for
 ### Content Mutation with Policies
 
 ```python
-from md_as_data import MarkdownFile, SectionPolicy
+from mddata import MarkdownFile, UpdatePolicy
 
 file = MarkdownFile('document.md')
 doc = file.mddata

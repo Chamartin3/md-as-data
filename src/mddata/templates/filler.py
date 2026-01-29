@@ -425,7 +425,11 @@ def _parse_cli_params(
     computed: ResolvedParameters,
     params_file: str | None = None,
 ) -> ResolvedParameters:
-    """Parse and validate CLI parameters with precedence."""
+    """Parse and validate CLI parameters with precedence.
+
+    NOTE: The operations layer now validates parameters BEFORE calling this function,
+    so this validation is a safety net for direct API usage.
+    """
     resolved_values: dict[str, ParameterValue] = {}
 
     # Start with computed parameters (lowest precedence)
@@ -484,10 +488,22 @@ def _parse_cli_params(
         _validate_param_constraints(parsed_value, param_def)
         resolved_values[key] = parsed_value
 
-    # Check required parameters
+    # Check required parameters with enhanced error messages
+    missing = []
     for key, param_def in definitions.items():
         if param_def.get("required", False) and key not in resolved_values:
-            raise ValueError(f"Required parameter '{key}' is not provided")
+            missing.append(key)
+
+    if missing:
+        # Enhanced error message
+        provided = [k for k in resolved_values.keys() if k not in computed]
+        available = list(definitions.keys())
+        raise ValueError(
+            f"Missing required parameters: {', '.join(missing)}\n"
+            f"Provided: {', '.join(provided) if provided else 'None'}\n"
+            f"Available: {', '.join(available)}\n"
+            f"\nNote: Use load_and_validate_data() for pre-validation"
+        )
 
     return resolved_values
 

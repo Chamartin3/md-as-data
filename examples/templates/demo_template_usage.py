@@ -104,9 +104,8 @@ def demo_meeting_notes():
     print("\nResolved array values (comma-separated):")
     for name, value in params.values.items():
         if isinstance(value, list):
-            from mddata.templates.substitution import format_array_value
-
-            formatted = format_array_value(value)
+            # Format list values as comma-separated strings
+            formatted = ", ".join(str(item) for item in value)
             print(f"  - {name}: {formatted}")
 
     # Demonstrate substitution with arrays

@@ -1,19 +1,16 @@
 """Modify subcommands for mutating markdown file content."""
 
-import json
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from mddata.models import UpdatePolicy
-from mddata.utils import DataLoadError, load_data_update
 
 from .utils import (
     InputParser,
     MarkdownPrinter,
     cli_context,
-    data_format_converter,
     section_policy_converter,
 )
 
@@ -149,117 +146,121 @@ def remove_property(
         raise typer.Exit(1)
 
 
-@app.command("from-data")
-def from_data(
+@app.command("task")
+def task(
     file_path: FilePathArg,
-    source: Annotated[str, typer.Argument(help="Data file path or '-' for stdin")],
-    format: Annotated[
+    action: Annotated[
+        str, typer.Argument(help="Action: complete, pending, add, remove")
+    ],
+    task_ref: Annotated[str, typer.Argument(help="Task reference (UID or index)")],
+    section: Annotated[
+        str | None,
+        typer.Option("--section", "-s", help="Section containing the task list"),
+    ] = None,
+    content: Annotated[
         str | None,
         typer.Option(
-            "--format",
-            "-f",
-            help="Data format: json or yaml (auto-detected from file extension)",
+            "--content", "-c", help="Content for new task (required for 'add')"
         ),
     ] = None,
-    param: Annotated[
-        list[str],
-        typer.Option(
-            "-p",
-            "--param",
-            help="Template parameter (KEY=VALUE, KEY=@file, KEY=-, KEY=@-)",
-        ),
-    ] = [],
-    params_file: Annotated[
-        Path | None,
-        typer.Option("--params", help="Load all parameters from JSON/YAML file"),
-    ] = None,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", "-n", help="Show changes without applying")
-    ] = False,
+    symbol: Annotated[
+        str, typer.Option("--symbol", help="Symbol for new task (default: space)")
+    ] = " ",
 ) -> None:
-    """Apply changes from JSON/YAML file or template with unified interface.
+    """Modify task list items.
 
-    This command replaces both 'from-json' and 'from-template' with a single
-    unified interface that auto-detects the data format and handles templates
-    with parameter substitution when applicable.
+    Actions:
+      - complete: Mark task as completed
+      - pending: Mark task as pending
+      - add: Add new task to list
+      - remove: Remove task from list
 
-    Data Formats:
-      - JSON batch changes (MarkdownDataUpdate format)
-      - YAML template files with optional parameters
-      - Auto-detection based on file extension (.json, .yaml, .yml)
-      - Override auto-detection with --format option
-
-    Template Parameters:
-      If the data file contains a 'parameters' section, you can provide values:
-      - Direct value: -p title="My Document"
-      - From file: -p content=@content.txt
-      - From stdin: -p description=- (interactive) or -p description=@- (piped)
-      - From params file: --params params.json
+    Task Reference:
+      - For complete/pending/remove: UID (preferred) or numeric index
+      - For add: Section ID where to add the task
 
     Examples:
-      # Apply JSON batch changes (auto-detected)
-      mddata modify from-data doc.md changes.json
+      # Mark task as completed by UID
+      mddata doc.md modify task complete A1B2
 
-      # Apply YAML template with parameters (auto-detected)
-      mddata modify from-data doc.md template.yaml -p title="My Doc" -p author=John
+      # Mark task as completed by index
+      mddata doc.md modify task complete 0 --section "sprint_planning"
 
-      # Load from stdin with explicit format
-      cat changes.json | mddata modify from-data doc.md - --format json
+      # Add new task
+      mddata doc.md modify task add "sprint_planning" --content "New task"
 
-      # Override auto-detection
-      mddata modify from-data doc.md data.txt --format yaml
-
-      # Use parameter file
-      mddata modify from-data doc.md template.yaml --params params.json
+      # Remove task
+      mddata doc.md modify task remove C3D4
     """
     md_file = cli_context.load_file_for_command(file_path)
     printer = MarkdownPrinter(cli_context.console)
 
     try:
-        # Load data using unified loader
-        try:
-            # Convert string format to DataFormat enum
-            data_format = data_format_converter(format)
-            update = load_data_update(
-                source,
-                format=data_format,
-                cli_params=param if param else None,
-                params_file=str(params_file) if params_file else None,
-            )
-        except DataLoadError as e:
-            printer.print_error(str(e))
-            raise typer.Exit(1)
-
-        if dry_run:
-            source_name = "stdin" if source == "-" else source
-            printer.print_success(f"Dry run - would apply changes from {source_name}")
-            print(json.dumps(update.to_dict(), indent=2))
-            return
-
-        # Apply changes using core functionality
-        result = md_file.mddata.apply_batch_changes(update.to_dict())
-
-        # Report warnings
-        for warning in result["warnings"]:
-            printer.print_warning(warning)
-
-        # Report errors
-        for error in result["errors"]:
-            printer.print_error(error)
-
-        if result["success"] and result["changes_count"] > 0:
-            md_file.save()
-            source_name = "stdin" if source == "-" else source
-            printer.print_success(
-                f"Applied {result['changes_count']} changes from {source_name} "
-                f"({result['frontmatter_changes']} frontmatter, "
-                f"{result['section_changes']} sections)"
-            )
-        elif result["changes_count"] == 0:
-            printer.print_warning("No valid changes found in data")
+        # For add action, task_ref is the section ID, so get all task lists
+        if action == "add":
+            task_lists = md_file.mddata.get_task_lists(None)
         else:
-            printer.print_error("Operation failed")
+            # For other actions, filter by section if specified
+            task_lists = md_file.mddata.get_task_lists(section)
+
+        if not task_lists:
+            section_msg = f" in section '{section}'" if section else ""
+            printer.print_error(f"No task lists found{section_msg}")
             raise typer.Exit(1)
+
+        # For add action, task_ref is the section ID
+        if action == "add":
+            if not content:
+                printer.print_error("Content is required for 'add' action")
+                raise typer.Exit(1)
+
+            section_id = task_ref  # For add, task_ref is the section ID
+
+            # Find task list in the specified section
+            target_list = None
+            for task_list in task_lists:
+                if task_list.block.section == section_id:
+                    target_list = task_list
+                    break
+
+            if not target_list:
+                printer.print_error(f"No task list found in section '{section_id}'")
+                raise typer.Exit(1)
+
+            # Add the task
+            uid = target_list.add_task(content, symbol)
+            md_file.save()
+            printer.print_success(f"Added task '{content}' with UID '{uid}'")
+
+        else:
+            # For other actions, find the task across all lists
+            found = False
+            for task_list in task_lists:
+                try:
+                    if action == "complete":
+                        task_list.mark_completed(task_ref)
+                        found = True
+                    elif action == "pending":
+                        task_list.mark_pending(task_ref)
+                        found = True
+                    elif action == "remove":
+                        task_list.remove_task(task_ref)
+                        found = True
+                    else:
+                        printer.print_error(f"Unknown action: {action}")
+                        raise typer.Exit(1)
+
+                    if found:
+                        md_file.save()
+                        printer.print_success(f"Task {action}d successfully")
+                        break
+
+                except (ValueError, IndexError):
+                    continue  # Try next task list
+
+            if not found:
+                printer.print_error(f"Task '{task_ref}' not found")
+                raise typer.Exit(1)
 
     except Exception as e:
         printer.print_error(str(e))

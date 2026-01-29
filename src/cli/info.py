@@ -161,6 +161,7 @@ def tasks(
                     "content": task["content"],
                     "symbol": task["symbol"],
                     "completed": is_completed,
+                    "uid": task.get("uid", ""),
                 }
             )
 
@@ -189,6 +190,7 @@ def _display_tasks_compact(tasks: list[dict], console) -> None:
     for task in tasks:
         symbol = task["symbol"]
         content = task["content"]
+        uid = task.get("uid", "")
 
         # Style based on symbol
         if symbol.lower() == "x":
@@ -204,17 +206,19 @@ def _display_tasks_compact(tasks: list[dict], console) -> None:
             symbol_display = f"[cyan][{symbol}][/cyan]"
             content_style = None
 
+        uid_display = f"[blue]{uid}[/blue]" if uid else ""
+
         if content_style:
-            console.print(
-                f"{symbol_display} [{content_style}]{content}[/{content_style}]"
-            )
+            content_fmt = f"[{content_style}]{content}[/{content_style}]"
+            console.print(f"{symbol_display} {uid_display} {content_fmt}")
         else:
-            console.print(f"{symbol_display} {content}")
+            console.print(f"{symbol_display} {uid_display} {content}")
 
 
 def _display_tasks_verbose(tasks: list[dict], console) -> None:
     """Display tasks in detailed table format."""
     table = Table(title="Task List")
+    table.add_column("UID", style="blue")
     table.add_column("Status", style="cyan")
     table.add_column("Symbol", style="magenta")
     table.add_column("Content")
@@ -222,6 +226,7 @@ def _display_tasks_verbose(tasks: list[dict], console) -> None:
     for task in tasks:
         symbol = task["symbol"]
         content = task["content"]
+        uid = task.get("uid", "")
 
         if symbol.lower() == "x":
             status = "[green]Completed[/green]"
@@ -232,6 +237,6 @@ def _display_tasks_verbose(tasks: list[dict], console) -> None:
         else:
             status = "[cyan]Custom[/cyan]"
 
-        table.add_row(status, f"[{symbol}]", content)
+        table.add_row(uid, status, f"[{symbol}]", content)
 
     console.print(table)

@@ -116,15 +116,14 @@ parameters:
     enum: ["value1", "value2"]          # Allowed values
     item_type: str                      # For arrays
 
-changes:
-  frontmatter:
-    property: "{param}"                 # Placeholder substitution
+frontmatter:
+  property: "{param}"                 # Placeholder substitution
 
-  sections:
-    - id: "section_id"
-      content: |
-        Content with {placeholders}
-      policy: append|replace|update     # Section merge policy
+sections:
+  - id: "section_id"
+    content: |
+      Content with {placeholders}
+    policy: append|replace|update     # Section merge policy
 ```
 
 ## Computed Parameters

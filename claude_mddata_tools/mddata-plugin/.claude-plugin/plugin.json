@@ -1,0 +1,20 @@
+{
+  "name": "mddata-tools",
+  "description": "Comprehensive toolkit for treating markdown files as structured data objects. Query, validate, transform, and generate markdown documents programmatically using mddata.",
+  "version": "1.0.0",
+  "author": {
+    "name": "mddata Team",
+    "email": "support@mddata.dev"
+  },
+  "repository": "https://github.com/mddata/claude-mddata-tools",
+  "keywords": [
+    "markdown",
+    "data",
+    "structured-documents",
+    "schema",
+    "validation",
+    "transformation",
+    "documentation"
+  ],
+  "license": "MIT"
+}

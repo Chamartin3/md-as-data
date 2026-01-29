@@ -176,7 +176,7 @@ class MarkdownData:
     def set_section(
         section_id: str,
         content: str,
-        policy: SectionPolicy = SectionPolicy.UPDATE
+        policy: UpdatePolicy = UpdatePolicy.UPDATE
     ) -> None:
         """High-level section setter with auto-heading generation"""
 
@@ -395,12 +395,12 @@ doc.introduction = section
 doc.set_section(
     section_id="introduction.overview",
     content="Overview content here",
-    policy=SectionPolicy.UPDATE  # Default
+    policy=UpdatePolicy.UPDATE  # Default
 )
 
 # Policy-based operations
-doc.set_section("conclusion", "New conclusion", policy=SectionPolicy.REPLACE)
-doc.set_section("updates", "More updates", policy=SectionPolicy.APPEND)
+doc.set_section("conclusion", "New conclusion", policy=UpdatePolicy.REPLACE)
+doc.set_section("updates", "More updates", policy=UpdatePolicy.APPEND)
 
 # Convenience methods
 doc.append_to_section('introduction', 'Additional paragraph')
@@ -450,18 +450,13 @@ else:
 ### 5. Mutation Policies
 
 ```python
-from mddata import UpdatePolicy, SectionPolicy
+from mddata import UpdatePolicy
 
-# For frontmatter
-UpdatePolicy.REPLACE  # Replace entire value
-UpdatePolicy.MERGE    # Smart merge (lists, dicts)
-UpdatePolicy.UPDATE   # Alias for MERGE
-UpdatePolicy.APPEND   # Append to existing value
-
-# For sections (alias of UpdatePolicy)
-SectionPolicy.REPLACE  # Replace entire section
-SectionPolicy.UPDATE   # Merge content, preserve subsections
-SectionPolicy.APPEND   # Add content without removing existing
+# For both frontmatter and sections
+UpdatePolicy.REPLACE  # Replace entire value/section
+UpdatePolicy.UPDATE   # Merge content while preserving structure
+UpdatePolicy.MERGE    # Smart merge with existing value
+UpdatePolicy.APPEND   # Append to existing value/content
 ```
 
 ---
@@ -682,7 +677,7 @@ doc.mddata.updated_at = "2025-01-15"
 doc.mddata.set_section(
     'introduction',
     'Updated introduction with new content',
-    policy=SectionPolicy.UPDATE
+    policy=UpdatePolicy.UPDATE
 )
 
 doc.mddata.append_to_section(

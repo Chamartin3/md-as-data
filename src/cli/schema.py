@@ -81,8 +81,8 @@ def _load_schema_file(schema_file: Path) -> dict:
             )
 
 
-@app.command("generate")
-def generate_schema_command(
+@app.command("infer")
+def infer_schema_command(
     file_path: FilePathArg,
     inference_mode: Annotated[
         str,
@@ -109,13 +109,13 @@ def generate_schema_command(
         typer.Option("--pretty/--compact", help="Pretty-print JSON output"),
     ] = True,
 ) -> None:
-    """Generate schema from single document or folder of documents.
+    """Infer schema from single document or folder of documents.
 
     Automatically detects if the input is a file or folder:
-    - Single file: mdasdata document.md schema generate
-    - Folder: mdasdata ./docs/ schema generate (recursively finds all *.md files)
+    - Single file: mdasdata schema infer document.md
+    - Folder: mdasdata schema infer ./docs/ (recursively finds all *.md files)
 
-    For folders with multiple documents, generates a merged schema by:
+    For folders with multiple documents, infers a merged schema by:
     - Marking properties as required if present in ≥75% of documents
     - Creating enum types for single-word string properties
     - Using union types for properties with conflicting types
@@ -125,16 +125,16 @@ def generate_schema_command(
 
     Examples:
         Single file:
-        $ mdasdata document.md schema generate --pretty
+        $ mdasdata schema infer document.md --pretty
 
         Folder:
-        $ mdasdata ./documentation/ schema generate --output schema.json
+        $ mdasdata schema infer ./documentation/ --output schema.json
 
         YAML format:
-        $ mdasdata ./docs/ schema generate --format yaml --output schema.yaml
+        $ mdasdata schema infer ./docs/ --format yaml --output schema.yaml
 
         Strict inference:
-        $ mdasdata ./docs/ schema generate --inference-mode strict
+        $ mdasdata schema infer ./docs/ --inference-mode strict
     """
     from mddata import MarkdownFile
 

@@ -28,23 +28,22 @@ parameters:
     default: []
     description: "Key decisions made"
 
-changes:
-  frontmatter:
-    title: "{title}"
-    date: "{date}"
-    attendees: "{attendees}"
+frontmatter:
+  title: "{title}"
+  date: "{date}"
+  attendees: "{attendees}"
 
-  sections:
-    - id: "meetings"
-      content: |
-        ## {title} - {date}
+sections:
+  - id: "meetings"
+    content: |
+      ## {title} - {date}
 
-        ### Attendees
-        {attendees}
+      ### Attendees
+      {attendees}
 
-        ### Action Items
-        {action_items}
+      ### Action Items
+      {action_items}
 
-        ### Decisions
-        {decisions}
-      policy: append
+      ### Decisions
+      {decisions}
+    policy: append

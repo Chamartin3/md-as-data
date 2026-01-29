@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from mddata import MarkdownFile, generate_schema
-from mddata.validation import SchemaInferenceMode
+from mddata.schema import SchemaInferenceMode
 
 
 def main():

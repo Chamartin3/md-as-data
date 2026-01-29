@@ -1,5 +1,6 @@
-# Complex Template: Bug Report
+# Complex Template: Bug Report - Flat Format
 # Demonstrates parameter constraints, validation, and enums
+# No 'changes' wrapper - direct MarkdownDataUpdate structure
 
 parameters:
   title:
@@ -51,35 +52,36 @@ parameters:
     default: ""
     description: "Steps to reproduce the bug"
 
-changes:
-  frontmatter:
-    title: "{title}"
-    severity: "{severity}"
-    priority: "{priority}"
-    reporter: "{reporter}"
-    date_reported: "{date}"
-    status: "open"
-    affected_versions: "{affected_versions}"
+# Direct frontmatter (no wrapper)
+frontmatter:
+  title: "{title}"
+  severity: "{severity}"
+  priority: "{priority}"
+  reporter: "{reporter}"
+  date_reported: "{date}"
+  status: "open"
+  affected_versions: "{affected_versions}"
 
-  sections:
-    - id: "bugs"
-      content: |
-        ## [{severity}] {title}
+# Direct sections (no wrapper)
+sections:
+  - id: "bugs"
+    content: |
+      ## [{severity}] {title}
 
-        **Priority**: {priority}/5
-        **Reporter**: {reporter}
-        **Date**: {date}
-        **Affected Versions**: {affected_versions}
+      **Priority**: {priority}/5
+      **Reporter**: {reporter}
+      **Date**: {date}
+      **Affected Versions**: {affected_versions}
 
-        ### Description
-        {description}
+      ### Description
+      {description}
 
-        ### Steps to Reproduce
-        {reproduce_steps}
+      ### Steps to Reproduce
+      {reproduce_steps}
 
-        ### Status
-        - [ ] Investigate
-        - [ ] Fix
-        - [ ] Test
-        - [ ] Deploy
-      policy: append
+      ### Status
+      - [ ] Investigate
+      - [ ] Fix
+      - [ ] Test
+      - [ ] Deploy
+    policy: append

@@ -1,5 +1,6 @@
 """Schema generation from existing markdown documents."""
 
+from datetime import date, datetime
 from typing import Literal
 
 from ..models import (
@@ -213,6 +214,10 @@ class SchemaGenerator:
             return ValueType.INTEGER.value
         elif isinstance(value, float):
             return ValueType.FLOAT.value
+        elif isinstance(value, datetime):
+            return ValueType.DATETIME.value
+        elif isinstance(value, date):
+            return ValueType.DATE.value
         elif isinstance(value, str):
             return ValueType.STRING.value
         elif isinstance(value, list):

@@ -104,7 +104,7 @@ echo '{
   "content": {
     "id": "", "title": "", "level": 0,
     "blocks": [{"type": "paragraph", "content": "A quick note."}],
-    "subsections": []
+    "children": []
   }
 }' | mddata generate --data - --output inline_note.md
 ```
@@ -169,13 +169,13 @@ Data files must follow the `MarkdownDataDict` format:
         "content": "block content"
       }
     ],
-    "subsections": [
+    "children": [
       {
         "id": "section_id",
         "title": "Section Title",
         "level": 2,
         "blocks": [],
-        "subsections": []
+        "children": []
       }
     ]
   }

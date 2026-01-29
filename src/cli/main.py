@@ -5,7 +5,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from . import extract, generate, info, modify, schema
+from . import extract, info, modify, schema, write
 from .utils import cli_context
 
 app = typer.Typer(
@@ -21,8 +21,8 @@ app.add_typer(modify.app, name="modify")
 app.add_typer(extract.app, name="extract")
 app.add_typer(schema.app, name="schema")
 
-# Register generate command at root level (doesn't use file_path argument)
-app.command(name="generate")(generate.generate_command)
+# Register write command at root level (unified create/modify operations)
+app.command(name="write")(write.write_command)
 
 console = Console()
 
@@ -56,9 +56,9 @@ def main(
     mdasdata document.md extract json --pretty
     mdasdata document.md extract frontmatter --format yaml
 
-    [dim]# Generate markdown from schema or data (use - as placeholder)[/dim]
-    mdasdata - generate --data data.json --output document.md
-    mdasdata - generate --schema schema.json --output template.md
+    [dim]# Render markdown from schema or data[/dim]
+    mdasdata render --data data.json --output document.md
+    mdasdata render --schema schema.json --output template.md
     """
     if version:
         console.print("mdasdata 1.0.0")

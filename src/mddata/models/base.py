@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from enum import Enum, IntEnum
 from typing import Any, TypeVar
 
 # Type aliases for frontmatter properties
-FrontmatterValue = str | int | float | bool | list[str] | dict[str, Any] | None
+FrontmatterValue = (
+    str | int | float | bool | list[str] | dict[str, Any] | date | datetime | None
+)
 FrontmatterProperties = dict[str, FrontmatterValue]
 
 # Generic frontmatter properties type

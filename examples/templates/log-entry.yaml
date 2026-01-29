@@ -19,20 +19,19 @@ parameters:
     default: "general"
     description: "Entry category"
 
-changes:
-  frontmatter:
-    title: "{title}"
-    category: "{category}"
-    last_updated: "{date}"
-    timestamp: "{now}"
+frontmatter:
+  title: "{title}"
+  category: "{category}"
+  last_updated: "{date}"
+  timestamp: "{now}"
 
-  sections:
-    - id: "changelog"
-      content: |
-        ## {title}
+sections:
+  - id: "changelog"
+    content: |
+      ## {title}
 
-        **Category**: {category}
-        **Date**: {date}
+      **Category**: {category}
+      **Date**: {date}
 
-        {content}
-      policy: append
+      {content}
+    policy: append
