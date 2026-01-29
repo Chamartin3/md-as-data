@@ -442,7 +442,7 @@ mddata generate --data data.json
 
 **JSON Data Format:**
 
-The JSON data must match the `MarkdownDataDict` format (same as output from `export json`):
+The JSON data must match the `MarkdownDataDict` format (same as output from `extract json`):
 
 ```json
 {
@@ -452,18 +452,26 @@ The JSON data must match the `MarkdownDataDict` format (same as output from `exp
     "date": "2025-10-21"
   },
   "content": {
-    "sections": [
+    "id": "",
+    "title": "",
+    "level": 0,
+    "path": "",
+    "blocks": [],
+    "children": [
       {
         "id": "introduction",
         "title": "Introduction",
-        "level": 2,
+        "level": 1,
+        "path": "introduction",
         "blocks": [
           {
+            "section_id": "introduction",
             "type": "paragraph",
-            "content": "This is the introduction paragraph."
+            "content": "This is the introduction paragraph.",
+            "metadata": {}
           }
         ],
-        "subsections": []
+        "children": []
       }
     ]
   }
