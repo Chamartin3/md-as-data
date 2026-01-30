@@ -82,7 +82,7 @@ Your output is ALWAYS a structured requirements report containing:
     required: <true|false>
     typical_blocks:
       - <block_type>: <description>
-    subsections: [<list of child sections>]
+    children: [<list of child sections>]
 
 ## Patterns Identified
 <patterns>:

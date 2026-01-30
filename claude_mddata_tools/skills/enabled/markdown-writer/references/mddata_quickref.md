@@ -62,14 +62,14 @@ mddata modify set-section file.md intro "Content" --policy replace
         "title": "Introduction",
         "level": 2,
         "content": "Introduction text here...",
-        "subsections": []
+        "children": []
       },
       {
         "id": "body",
         "title": "Main Body",
         "level": 2,
         "content": "Body content...",
-        "subsections": [
+        "children": [
           {
             "id": "details",
             "title": "Details",

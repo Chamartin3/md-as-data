@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 
+from mddata.errors import ParameterValidationError
 from mddata.models import MarkdownDataDict, MarkdownDataUpdate
 from mddata.templates.filler import TemplateFiller
 
@@ -166,14 +167,20 @@ def load_data_update(
             raise DataLoadError(f"Data validation failed: {e}") from e
 
         # If template (has parameters), fill with provided values
-        # Check for parameters dict presence (even if empty) to handle computed params
-        if update.parameters is not None:
+        # Only fill if parameters are actually provided
+        # via cli_params or params_file
+        # This allows loading templates without filling them
+        # (for later filling in operations layer)
+        if update.parameters is not None and (cli_params or params_file):
             filler = TemplateFiller(update)
             update = filler.fill(cli_params=cli_params or [], params_file=params_file)
 
         return update
 
     except DataLoadError:
+        raise
+    except ParameterValidationError:
+        # Preserve parameter validation errors with full details
         raise
     except Exception as e:
         source_name = "stdin" if source == "-" else source

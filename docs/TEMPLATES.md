@@ -44,11 +44,24 @@ parameters:
     required: true|false
     default: value
     description: "Human-readable description"
+
     # Type-specific constraints
     min: number        # Minimum value/length
     max: number        # Maximum value/length
     pattern: "regex"   # String validation pattern
     item_type: str     # Array item type
+
+    # Enhanced validation (Phase 1)
+    enum: [value1, value2]                # Allowed values (any type)
+    enum_descriptions: {value1: "desc"}   # Descriptions for enum values
+    enum_strict: true|false               # Error (true) or warn (false)
+    min_items: number                     # Minimum array length
+    max_items: number                     # Maximum array length
+    unique_items: true|false              # Require unique array values
+    item_enum: [val1, val2]               # Allowed array item values
+    item_enum_descriptions: {val1: "d"}   # Item enum descriptions
+    item_enum_strict: true|false          # Strict array item validation
+    item_pattern: "regex"                 # Regex for array items
 
 # Document frontmatter
 frontmatter:
@@ -78,7 +91,14 @@ sections:
   - id: section_id
     content: "Markdown content with {placeholders}"
     policy: update|replace|append
+    # For nested sections, use 'children' key (NOT 'subsections')
+    children:
+      - id: child_section_id
+        level: 3
+        content: "Nested content"
 ```
+
+> **Note**: For nested sections, always use the `children` key, not `subsections`. The `children` key is the correct field name in the `SectionUpdate` data model.
 
 ### Minimal Template Example
 
@@ -115,6 +135,20 @@ parameters:
     required: true         # Optional - must be provided (default: false)
     default: "value"       # Optional - default if not provided
     description: "text"    # Optional - human-readable description
+
+    # Enhanced validation constraints
+    enum: [val1, val2]                      # Allowed values (any type)
+    enum_descriptions: {val1: "desc"}       # Descriptions for enum values
+    enum_strict: true                       # Error on invalid (true) or warn (false)
+
+    # Array-specific constraints
+    min_items: 1                            # Minimum array length
+    max_items: 10                           # Maximum array length
+    unique_items: true                      # Require unique values
+    item_enum: [val1, val2]                 # Allowed values for array items
+    item_enum_descriptions: {val1: "desc"}  # Descriptions for item enum
+    item_enum_strict: true                  # Strict validation for items
+    item_pattern: "regex"                   # Regex pattern for array items
 ```
 
 ### Parameter Types
@@ -280,6 +314,141 @@ version:
   description: "Semantic version (e.g., 1.2.3)"
 ```
 
+#### Enum Validation
+
+Restrict parameter values to a predefined set with optional descriptions:
+
+**Basic enum (strict mode):**
+```yaml
+status:
+  type: str
+  enum: [draft, review, published]
+  enum_strict: true  # Raises error on invalid value (default)
+  description: "Document status"
+```
+
+**Enum with descriptions:**
+```yaml
+priority:
+  type: str
+  enum: [critical, high, medium, low]
+  enum_descriptions:
+    critical: "Requires immediate attention"
+    high: "Important, address soon"
+    medium: "Normal priority"
+    low: "Can be deferred"
+  enum_strict: true
+```
+
+**Non-strict enum (warning mode):**
+```yaml
+category:
+  type: str
+  enum: [bug, feature, docs]
+  enum_strict: false  # Issues warning but allows invalid values
+  description: "Issue category (extensible)"
+```
+
+**Enum with mixed types:**
+```yaml
+verbosity:
+  type: int
+  enum: [0, 1, 2, 3]
+  enum_descriptions:
+    "0": "Silent"
+    "1": "Errors only"
+    "2": "Warnings and errors"
+    "3": "Verbose output"
+```
+
+#### Array Constraints
+
+Validate array length and uniqueness:
+
+**Length constraints:**
+```yaml
+tags:
+  type: array
+  min_items: 1    # At least 1 tag required
+  max_items: 5    # At most 5 tags allowed
+  description: "Document tags (1-5 required)"
+```
+
+**Uniqueness constraint:**
+```yaml
+collaborators:
+  type: array
+  unique_items: true  # No duplicate values allowed
+  description: "Unique collaborator names"
+```
+
+**Combined array constraints:**
+```yaml
+keywords:
+  type: array
+  min_items: 2
+  max_items: 10
+  unique_items: true
+  description: "2-10 unique keywords"
+```
+
+#### Array Item Enum Validation
+
+Restrict array item values to predefined set:
+
+**Strict item enum:**
+```yaml
+labels:
+  type: array
+  item_enum: [bug, feature, enhancement, documentation]
+  item_enum_strict: true  # All items must match enum
+  item_enum_descriptions:
+    bug: "Bug fix or issue"
+    feature: "New feature"
+    enhancement: "Improvement to existing feature"
+    documentation: "Documentation update"
+```
+
+**Non-strict item enum with pattern fallback:**
+```yaml
+tags:
+  type: array
+  item_enum: [python, javascript, typescript]
+  item_enum_strict: false  # Allows non-enum values
+  item_pattern: "^[a-z]+$"  # But they must match pattern
+  description: "Predefined tags or custom lowercase tags"
+```
+
+This allows either enum values OR values matching the pattern.
+
+#### Array Item Pattern Validation
+
+Validate array item format with regex:
+
+**Email validation:**
+```yaml
+recipients:
+  type: array
+  item_pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  description: "Valid email addresses"
+```
+
+**URL validation:**
+```yaml
+links:
+  type: array
+  item_pattern: "^https?://.*"
+  description: "HTTP/HTTPS URLs only"
+```
+
+**Version string validation:**
+```yaml
+supported_versions:
+  type: array
+  item_pattern: "^\\d+\\.\\d+\\.\\d+$"
+  description: "Semantic version strings (e.g., 1.2.3)"
+```
+
 #### Required Parameters
 
 ```yaml
@@ -433,9 +602,13 @@ parameters:
   severity:
     type: str
     required: true
+    enum: [critical, high, medium, low]
+    enum_descriptions:
+      critical: "Requires immediate attention"
+      high: "Important, address soon"
+      medium: "Normal priority"
+      low: "Can be deferred"
     description: "Bug severity level"
-    # Note: Enum validation not yet implemented
-    # Values: critical, high, medium, low
 
   priority:
     type: int
@@ -1161,6 +1334,216 @@ mddata modify from-json my-document.md publish-updates.yaml --dry-run
 
 ---
 
+## Advanced Validation Examples
+
+### Example 4: Pull Request Template with Enhanced Validation
+
+This example demonstrates all enhanced validation features:
+
+**Template:** `pull-request.yaml`
+
+```yaml
+parameters:
+  title:
+    type: str
+    required: true
+    min: 10
+    max: 100
+    description: "PR title (10-100 characters)"
+
+  pr_type:
+    type: str
+    required: true
+    enum: [feature, bugfix, refactor, docs, test, chore]
+    enum_strict: true
+    enum_descriptions:
+      feature: "New feature or functionality"
+      bugfix: "Bug fix"
+      refactor: "Code refactoring (no behavior change)"
+      docs: "Documentation changes"
+      test: "Test additions or modifications"
+      chore: "Maintenance tasks"
+    description: "Type of change"
+
+  priority:
+    type: int
+    required: true
+    enum: [1, 2, 3]
+    enum_descriptions:
+      "1": "High priority - merge ASAP"
+      "2": "Medium priority - normal review"
+      "3": "Low priority - can wait"
+    description: "Priority level"
+
+  labels:
+    type: array
+    required: true
+    min_items: 1
+    max_items: 5
+    unique_items: true
+    item_enum: [backend, frontend, database, api, security, performance]
+    item_enum_strict: false
+    item_pattern: "^[a-z-]+$"
+    item_enum_descriptions:
+      backend: "Backend code changes"
+      frontend: "Frontend/UI changes"
+      database: "Database schema or query changes"
+      api: "API endpoint changes"
+      security: "Security-related changes"
+      performance: "Performance improvements"
+    description: "PR labels (predefined or custom lowercase-hyphenated)"
+
+  reviewers:
+    type: array
+    required: true
+    min_items: 1
+    max_items: 3
+    unique_items: true
+    item_pattern: "^[a-zA-Z0-9_-]+$"
+    description: "GitHub usernames (1-3 reviewers)"
+
+  linked_issues:
+    type: array
+    required: false
+    default: []
+    item_pattern: "^#\\d+$"
+    description: "Related issue numbers (e.g., #123)"
+
+  breaking_changes:
+    type: bool
+    required: false
+    default: false
+    description: "Does this PR introduce breaking changes?"
+
+frontmatter:
+  title: "{title}"
+  pr_type: "{pr_type}"
+  priority: "{priority}"
+  labels: "{labels}"
+  reviewers: "{reviewers}"
+  linked_issues: "{linked_issues}"
+  breaking_changes: "{breaking_changes}"
+  created: "{date}"
+
+sections:
+  - id: pull_request
+    content: |
+      # {title}
+
+      **Type**: {pr_type}
+      **Priority**: {priority}/3
+      **Labels**: {labels}
+      **Reviewers**: {reviewers}
+      **Created**: {date}
+
+      ## Description
+
+      [Describe the changes in this PR]
+
+      ## Related Issues
+
+      {linked_issues}
+
+      ## Testing
+
+      - [ ] Unit tests added/updated
+      - [ ] Integration tests added/updated
+      - [ ] Manual testing completed
+
+      ## Breaking Changes
+
+      **Has Breaking Changes**: {breaking_changes}
+
+      [If yes, describe breaking changes and migration path]
+
+      ## Checklist
+
+      - [ ] Code follows project style guidelines
+      - [ ] Self-review completed
+      - [ ] Comments added for complex code
+      - [ ] Documentation updated
+      - [ ] No new warnings generated
+```
+
+**Usage with validation:**
+
+```bash
+# Valid PR with all constraints met
+mddata write --data pull-request.yaml \
+  title="Add user authentication with OAuth2" \
+  pr_type="feature" \
+  priority=1 \
+  'labels=["backend", "api", "security"]' \
+  'reviewers=["alice", "bob"]' \
+  'linked_issues=["#42", "#56"]' \
+  breaking_changes=true \
+  --output pr-auth.md
+
+# Invalid: title too short (min 10 chars)
+mddata write --data pull-request.yaml \
+  title="Fix bug" \
+  # Error: String length is less than minimum 10
+
+# Invalid: wrong enum value
+mddata write --data pull-request.yaml \
+  pr_type="hotfix" \
+  # Error: Value 'hotfix' not in enum values: [feature, bugfix, ...]
+  # Available options:
+  #   feature - New feature or functionality
+  #   bugfix - Bug fix
+  #   ...
+
+# Invalid: too many labels
+mddata write --data pull-request.yaml \
+  'labels=["a", "b", "c", "d", "e", "f"]' \
+  # Error: Array must have at most 5 items, got 6
+
+# Invalid: duplicate reviewers
+mddata write --data pull-request.yaml \
+  'reviewers=["alice", "alice"]' \
+  # Error: Array items must be unique
+
+# Valid: custom label allowed (non-strict enum + pattern match)
+mddata write --data pull-request.yaml \
+  'labels=["backend", "custom-feature"]' \
+  # Success: "backend" in enum, "custom-feature" matches pattern
+
+# Invalid: custom label doesn't match pattern
+mddata write --data pull-request.yaml \
+  'labels=["backend", "Custom_Feature"]' \
+  # Error: Array item [1] = 'Custom_Feature' does not match pattern '^[a-z-]+$'
+
+# Invalid: malformed issue reference
+mddata write --data pull-request.yaml \
+  'linked_issues=["42", "issue-56"]' \
+  # Error: Array item [0] = '42' does not match pattern '^#\\d+$'
+```
+
+**Error Messages:**
+
+The validation system provides detailed error messages:
+
+```
+# Enum validation with descriptions
+Error: Value 'hotfix' not in enum values: [feature, bugfix, refactor, docs, test, chore]
+
+Available options:
+  feature - New feature or functionality
+  bugfix - Bug fix
+  refactor - Code refactoring (no behavior change)
+  docs - Documentation changes
+  test - Test additions or modifications
+  chore - Maintenance tasks
+
+# Array item validation with index
+Error: Array item [2] = 'URGENT' not in enum values: [backend, frontend, database, api, security, performance]
+
+# Pattern validation with regex
+Error: Array item [1] = 'user@domain' does not match pattern '^[a-zA-Z0-9_-]+$'
+```
+
+---
+
 ## Python API
 
 Use templates programmatically in Python code.
@@ -1295,6 +1678,62 @@ print(f"Created bug report: {doc.filepath}")
        type: str
        min: 5
        max: 100
+   ```
+
+5. **Use enums for controlled vocabularies**
+   ```yaml
+   parameters:
+     status:
+       type: str
+       enum: [draft, review, published]
+       enum_descriptions:
+         draft: "Work in progress"
+         review: "Under review"
+         published: "Published and live"
+       description: "Document lifecycle status"
+   ```
+
+6. **Use non-strict enums for extensibility**
+   ```yaml
+   parameters:
+     category:
+       type: str
+       enum: [common, predefined, values]
+       enum_strict: false  # Allow custom values with warning
+       description: "Category (predefined or custom)"
+   ```
+
+7. **Validate array content with constraints**
+   ```yaml
+   parameters:
+     tags:
+       type: array
+       min_items: 1
+       max_items: 10
+       unique_items: true
+       item_enum: [python, javascript, typescript]
+       item_enum_strict: false
+       item_pattern: "^[a-z-]+$"
+       description: "1-10 unique tags (predefined or custom lowercase)"
+   ```
+
+8. **Provide helpful enum descriptions**
+   ```yaml
+   # Good - clear descriptions help users
+   parameters:
+     priority:
+       type: int
+       enum: [1, 2, 3]
+       enum_descriptions:
+         "1": "Critical - requires immediate attention"
+         "2": "Normal - handle in regular workflow"
+         "3": "Low - can be deferred"
+
+   # Bad - no descriptions
+   parameters:
+     priority:
+       type: int
+       enum: [1, 2, 3]  # Users have to guess meanings
    ```
 
 ### Parameter Organization
@@ -1442,6 +1881,98 @@ parameters:
   title:
     type: str
     required: true  # Must provide this
+```
+
+#### "Value 'X' not in enum values: [...]"
+
+**Cause:** Invalid enum value provided.
+
+**Solution:** Use one of the allowed enum values:
+
+```yaml
+parameters:
+  status:
+    type: str
+    enum: [draft, review, published]
+    enum_strict: true
+
+# Must use: draft, review, or published
+mddata write --data template.yaml status=draft -o doc.md
+```
+
+**Tip:** Error message shows all valid values with descriptions if defined.
+
+#### "Array must have at least N items"
+
+**Cause:** Array has fewer items than required minimum.
+
+**Solution:** Provide sufficient array items:
+
+```yaml
+parameters:
+  tags:
+    type: array
+    min_items: 2  # At least 2 required
+
+# Must provide at least 2 items
+'tags=["tag1", "tag2"]'
+```
+
+#### "Array items must be unique"
+
+**Cause:** Array contains duplicate values.
+
+**Solution:** Remove duplicate values:
+
+```bash
+# Wrong
+'tags=["python", "python"]'
+
+# Right
+'tags=["python", "javascript"]'
+```
+
+#### "Array item [N] = 'value' not in enum values"
+
+**Cause:** Array item doesn't match allowed values.
+
+**Solution:** Use valid enum values or check pattern:
+
+```yaml
+parameters:
+  labels:
+    type: array
+    item_enum: [bug, feature, docs]
+    item_enum_strict: false
+    item_pattern: "^[a-z-]+$"
+
+# Valid: enum value
+'labels=["bug"]'
+
+# Valid: matches pattern (non-strict)
+'labels=["custom-label"]'
+
+# Invalid: neither enum nor pattern match
+'labels=["Invalid_Label"]'
+```
+
+#### "Array item [N] = 'value' does not match pattern"
+
+**Cause:** Array item doesn't match regex pattern.
+
+**Solution:** Format value according to pattern:
+
+```yaml
+parameters:
+  emails:
+    type: array
+    item_pattern: "^[^@]+@[^@]+\\.[^@]+$"
+
+# Valid email format
+'emails=["user@example.com"]'
+
+# Invalid: missing @ or domain
+'emails=["invalid-email"]'
 ```
 
 ### Validation Tips

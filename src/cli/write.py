@@ -1,11 +1,11 @@
 """Unified write command for creating and modifying markdown files."""
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
-from mddata.models.schemas import DocumentSchema
+from mddata.models.schema import DocumentSchema
 from mddata.operations import (
     DataStructureError,
     OperationMode,
@@ -26,14 +26,14 @@ from .utils import (
 )
 
 
-def load_parameters_from_file(params_file: Path | None) -> dict[str, str]:
+def load_parameters_from_file(params_file: Path | None) -> dict[str, Any]:
     """Load parameters from JSON/YAML file.
 
     Args:
         params_file: Path to parameter file or None
 
     Returns:
-        Dict of parameter key-value pairs
+        Dict of parameter key-value pairs with their original types
 
     Raises:
         CLIError: On parameter file loading errors
@@ -42,7 +42,7 @@ def load_parameters_from_file(params_file: Path | None) -> dict[str, str]:
         return {}
 
     try:
-        # For now, load as raw dict - TODO: proper parameter file handling
+        # Load as raw dict preserving original data types
         import json
 
         import yaml
@@ -56,8 +56,8 @@ def load_parameters_from_file(params_file: Path | None) -> dict[str, str]:
         if not isinstance(data, dict):
             raise CLIError("Parameter file must contain a dictionary")
 
-        # Convert all values to strings
-        return {k: str(v) for k, v in data.items()}
+        # Return with original types preserved (arrays, strings, numbers, etc.)
+        return data
     except Exception as e:
         raise CLIError(f"Error loading parameters file: {e}")
 
@@ -144,6 +144,12 @@ def write_command(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Preview changes without applying")
     ] = False,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            "--debug", help="Show detailed error information and stack traces"
+        ),
+    ] = False,
 ) -> None:
     """Write markdown files from data, templates, or schemas.
 
@@ -173,7 +179,18 @@ def write_command(
         # Dry run to preview
         mddata write --data changes.json existing.md --dry-run
     """
+    import logging
+
     printer = MarkdownPrinter(cli_context.console)
+
+    # Configure logging based on debug flag
+    if debug:
+        logging.basicConfig(
+            level=logging.DEBUG, format="%(levelname)s [%(name)s]: %(message)s"
+        )
+        printer.console.print("[yellow]Debug mode enabled[/yellow]")
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
     # Parse parameters
     parameters = {}
@@ -187,17 +204,78 @@ def write_command(
     file_params = load_parameters_from_file(params_file)
     parameters.update(file_params)
 
+    # Show parameter info in debug mode
+    if debug and parameters:
+        printer.console.print(
+            f"[dim]Loaded parameters: {list(parameters.keys())}[/dim]"
+        )
+
     # Determine operation mode
     operation_mode = determine_operation_mode(data, schema, target_file, output)
 
+    if debug:
+        printer.console.print(f"[dim]Operation mode: {operation_mode.value}[/dim]")
+
+    # Auto-detect format from file extension if using default
+    if format == "json" and data and data != "-":
+        if data.endswith(('.yaml', '.yml')):
+            format = "yaml"
+            if debug:
+                printer.console.print("[dim]Auto-detected format: yaml[/dim]")
+
     # Load data
     try:
-        data_dict, data_update = load_and_validate_data(data, format)
+        # Pass parameters for template processing
+        params_file_str = str(params_file) if params_file else None
+        data_dict, data_update = load_and_validate_data(
+            data,
+            format,
+            cli_params=param,
+            params_file=params_file_str,
+        )
+
+        # Show data validation info in debug mode
+        if debug:
+            if data_dict:
+                printer.console.print(
+                    "[dim]✓ Loaded complete document (MarkdownDataDict)[/dim]"
+                )
+                if "frontmatter" in data_dict:
+                    fm_keys = list(data_dict["frontmatter"].keys())
+                    printer.console.print(f"[dim]  Frontmatter keys: {fm_keys}[/dim]")
+            elif data_update:
+                printer.console.print(
+                    "[dim]✓ Loaded template/update (MarkdownDataUpdate)[/dim]"
+                )
+                if data_update.parameters:
+                    param_count = len(data_update.parameters)
+                    printer.console.print(
+                        f"[dim]  Template parameters: {param_count}[/dim]"
+                    )
+                    required = [
+                        name
+                        for name, config in data_update.parameters.items()
+                        if isinstance(config, dict) and config.get("required", False)
+                    ]
+                    if required:
+                        printer.console.print(
+                            f"[dim]  Required parameters: {required}[/dim]"
+                        )
+            else:
+                printer.console.print("[yellow]Warning: No data loaded[/yellow]")
     except Exception as e:
-        raise CLIError(f"Error loading data: {e}")
+        details = str(e)
+        if debug:
+            import traceback
+
+            details = f"{details}\n\n{traceback.format_exc()}"
+        raise CLIError(f"Error loading data: {e}", details=details if debug else None)
 
     # Load schema
     schema_dict = load_schema_safely(schema)
+
+    if debug and schema_dict:
+        printer.console.print("[dim]✓ Loaded schema for validation[/dim]")
 
     # Prepare arguments for write_document
     write_args = {
@@ -206,6 +284,7 @@ def write_command(
         "operation_mode": operation_mode,
         "parameters": parameters or None,
         "policy": policy,
+        "force_overwrite": force,
     }
 
     # Set file arguments based on mode
@@ -226,16 +305,36 @@ def write_command(
     try:
         result = write_document(**write_args)
     except ParameterValidationError as e:
-        raise CLIError("Parameter validation failed", details=str(e))
+        details = str(e)
+        if debug:
+            import traceback
+
+            details = f"{details}\n\n{traceback.format_exc()}"
+        raise CLIError("Parameter validation failed", details=details)
     except DataStructureError as e:
-        raise CLIError("Data structure error", details=str(e))
+        details = str(e)
+        if debug:
+            import traceback
+
+            details = f"{details}\n\n{traceback.format_exc()}"
+        raise CLIError("Data structure error", details=details)
     except Exception as e:
-        raise CLIError(f"Write operation failed: {e}")
+        details = str(e)
+        if debug:
+            import traceback
+
+            details = (
+                f"{details}\n\n[bold]Full traceback:[/bold]\n{traceback.format_exc()}"
+            )
+        raise CLIError(f"Write operation failed: {e}", details=details)
 
     # Handle result
     if not result.success:
         error_msg = "; ".join(result.errors or ["Unknown error"])
-        raise CLIError(f"Operation failed: {error_msg}")
+        details = None
+        if debug and result.errors:
+            details = "\n".join(result.errors)
+        raise CLIError(f"Operation failed: {error_msg}", details=details)
 
     # Report success
     _handle_success(result, operation_mode, printer)

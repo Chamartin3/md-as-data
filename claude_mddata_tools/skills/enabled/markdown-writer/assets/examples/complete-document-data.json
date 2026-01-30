@@ -19,7 +19,7 @@
         "title": "Progress Updates",
         "level": 2,
         "content": "Key accomplishments this period:",
-        "subsections": [
+        "children": [
           {
             "id": "completed",
             "title": "Completed Tasks",

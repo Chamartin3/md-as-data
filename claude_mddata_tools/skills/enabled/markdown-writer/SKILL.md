@@ -7,31 +7,34 @@ description: Create and modify markdown files using structured data and template
   or work with schema-validated markdown documents. Ideal for workflows involving
   markdown document generation, template-based content creation, and systematic document
   updates.
+version: 1.1.0
+keywords:
+  - markdown
+  - document generation
+  - templates
+  - structured data
+  - CLI
+  - mddata
+  - bulk updates
+  - schema validation
+  - parameter substitution
+  - YAML
+  - JSON
+  - content management
+  - documentation automation
+  - template filling
+  - computed parameters
+  - parameter validation
+  - enum validation
+  - array constraints
+allowed_tools:
+  - "mddata write (--data, --schema, --output, --params, -p/--param, --policy, --force, --dry-run)"
+  - "mddata modify (set-property, remove-property, set-section)"
+  - "mddata schema (infer, validate, info)"
+  - "mddata info (summary, sections, properties, blocks)"
+  - "mddata extract (json, yaml, frontmatter)"
 ---
 # Markdown Writer
-
-<!-- keywords: -->
-<!--   - markdown -->
-<!--   - document generation -->
-<!--   - templates -->
-<!--   - structured data -->
-<!--   - CLI -->
-<!--   - mddata -->
-<!--   - bulk updates -->
-<!--   - schema validation -->
-<!--   - parameter substitution -->
-<!--   - YAML -->
-<!--   - JSON -->
-<!--   - content management -->
-<!--   - documentation automation -->
-<!--   - template filling -->
-<!--   - computed parameters -->
-<!-- allowed_tools: -->
-<!--   - "mddata write (--data, --schema, --output, --params, -p/--param, --policy, --force, --dry-run)" -->
-<!--   - "mddata modify (set-property, remove-property, set-section)" -->
-<!--   - "mddata schema (infer, validate, info)" -->
-<!--   - "mddata info (summary, sections, properties, blocks)" -->
-<!--   - "mddata extract (json, yaml, frontmatter)" -->
 ## Overview
 
 Enable programmatic creation and modification of markdown files using structured data and templates through the mddata CLI tool. This skill supports template-based document generation with parameter substitution, bulk updates from JSON/YAML data structures, complete document creation from structured data, and schema-validated document workflows.
@@ -140,7 +143,7 @@ Build JSON/YAML following the mddata format:
         "title": "Section Title",
         "level": 2,
         "content": "Section content...",
-        "subsections": []
+        "children": []
       }
     ]
   }
@@ -298,6 +301,212 @@ frontmatter:
 
 
 ```
+## Parameter Validation
+
+Templates support comprehensive parameter validation to ensure data quality and catch errors early. The validation system includes enum constraints, array validation, pattern matching, and detailed error messages.
+
+### Enum Validation
+
+Restrict parameter values to predefined sets with optional descriptions:
+
+**Basic enum (strict mode):**
+```yaml
+parameters:
+  status:
+    type: str
+    enum: [draft, review, published]
+    enum_strict: true  # Raises error on invalid value (default)
+    description: "Document status"
+```
+
+**Enum with descriptions:**
+```yaml
+parameters:
+  priority:
+    type: str
+    enum: [critical, high, medium, low]
+    enum_descriptions:
+      critical: "Requires immediate attention"
+      high: "Important, address soon"
+      medium: "Normal priority"
+      low: "Can be deferred"
+    description: "Priority level with clear definitions"
+```
+
+**Non-strict enum (warning mode):**
+```yaml
+parameters:
+  category:
+    type: str
+    enum: [bug, feature, docs]
+    enum_strict: false  # Issues warning but allows custom values
+    description: "Issue category (extensible)"
+```
+
+### Array Constraints
+
+Validate array length and uniqueness:
+
+**Length constraints:**
+```yaml
+parameters:
+  tags:
+    type: array
+    min_items: 1    # At least 1 tag required
+    max_items: 5    # At most 5 tags allowed
+    description: "Document tags (1-5 required)"
+```
+
+**Uniqueness constraint:**
+```yaml
+parameters:
+  collaborators:
+    type: array
+    unique_items: true  # No duplicate values allowed
+    description: "Unique collaborator names"
+```
+
+**Combined constraints:**
+```yaml
+parameters:
+  keywords:
+    type: array
+    min_items: 2
+    max_items: 10
+    unique_items: true
+    description: "2-10 unique keywords"
+```
+
+### Array Item Validation
+
+Validate individual array items with enums or patterns:
+
+**Strict item enum:**
+```yaml
+parameters:
+  labels:
+    type: array
+    item_enum: [bug, feature, enhancement, documentation]
+    item_enum_strict: true  # All items must match enum
+    item_enum_descriptions:
+      bug: "Bug fix or issue"
+      feature: "New feature"
+      enhancement: "Improvement to existing feature"
+      documentation: "Documentation update"
+```
+
+**Non-strict item enum with pattern fallback:**
+```yaml
+parameters:
+  tags:
+    type: array
+    item_enum: [python, javascript, typescript]
+    item_enum_strict: false  # Allows non-enum values
+    item_pattern: "^[a-z]+$"  # But they must match pattern
+    description: "Predefined tags or custom lowercase tags"
+```
+
+**Item pattern validation:**
+```yaml
+parameters:
+  emails:
+    type: array
+    item_pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    description: "Valid email addresses"
+```
+
+### Validation Error Messages
+
+The validation system provides clear, actionable error messages:
+
+```
+# Enum validation with descriptions
+Error: Value 'hotfix' not in enum values: [feature, bugfix, refactor, docs]
+
+Available options:
+  feature - New feature or functionality
+  bugfix - Bug fix
+  refactor - Code refactoring (no behavior change)
+  docs - Documentation changes
+
+# Array validation
+Error: Array must have at least 2 items, got 1
+
+# Array item validation with index
+Error: Array item [2] = 'Invalid_Label' does not match pattern '^[a-z-]+$'
+
+# Uniqueness violation
+Error: Array items must be unique
+```
+
+### Complete Validation Example
+
+**Template with full validation:**
+```yaml
+parameters:
+  title:
+    type: str
+    required: true
+    min: 10
+    max: 100
+    description: "Document title (10-100 characters)"
+
+  doc_type:
+    type: str
+    required: true
+    enum: [guide, tutorial, reference, api]
+    enum_strict: true
+    enum_descriptions:
+      guide: "Step-by-step guide"
+      tutorial: "Hands-on tutorial"
+      reference: "Technical reference"
+      api: "API documentation"
+
+  tags:
+    type: array
+    required: true
+    min_items: 2
+    max_items: 8
+    unique_items: true
+    item_enum: [beginner, intermediate, advanced, python, javascript]
+    item_enum_strict: false
+    item_pattern: "^[a-z-]+$"
+    description: "2-8 unique tags (predefined or custom lowercase)"
+
+  reviewers:
+    type: array
+    required: false
+    default: []
+    min_items: 1
+    max_items: 3
+    unique_items: true
+    item_pattern: "^[a-zA-Z0-9_-]+$"
+    description: "1-3 unique reviewer usernames"
+
+frontmatter:
+  title: "{{title}}"
+  type: "{{doc_type}}"
+  tags: "{{tags}}"
+  reviewers: "{{reviewers}}"
+  created: "{{date}}"
+```
+
+**Usage:**
+```bash
+mddata write --data template.yaml \
+  title="Getting Started with Python" \
+  doc_type="tutorial" \
+  'tags=["beginner", "python", "fundamentals"]' \
+  'reviewers=["alice", "bob"]' \
+  --output guide.md
+```
+
+For complete parameter validation reference, see **[TEMPLATES.md](../../../docs/TEMPLATES.md)** sections on:
+- Enum Validation (lines 310-356)
+- Array Constraints (lines 357-387)
+- Array Item Enum Validation (lines 389-415)
+- Array Item Pattern Validation (lines 417-443)
+
 ## Schema Validation
 
 For documents that must conform to specific structures:

@@ -196,7 +196,7 @@ cat > content.json <<'EOF'
         "id": "api",
         "title": "API Reference",
         "level": 2,
-        "subsections": [
+        "children": [
           {
             "id": "endpoints",
             "title": "Endpoints",
