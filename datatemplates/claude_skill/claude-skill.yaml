@@ -1,0 +1,71 @@
+# Claude Code Skill Datatemplate
+# This template generates a properly formatted Claude Code skill document
+# Parameters define customizable values for the template
+# Required parameters enforce validation - must be provided when using template
+parameters:
+  # Required core parameters
+  skill_name:
+    type: str
+    required: true
+    description: "Skill name (lowercase, hyphens, max 64 chars)"
+    pattern: "^[a-z0-9-]{1,64}$"
+  description:
+    type: str
+    required: true
+    description: "What the skill does and when to use it (max 1024 chars)"
+  purpose:
+    type: str
+    required: true
+    description: "Detailed explanation of the skill's purpose and use cases"
+  instructions:
+    type: str
+    required: true
+    description: "Step-by-step instructions for using the skill"
+  # Optional parameters with sensible defaults
+  allowed_tools:
+    type: str
+    required: false
+    description: "Comma-separated list of allowed tools (e.g., 'Read, Grep, Glob') or '*' for all tools. Common tools include: Read, Write, Edit, MultiEdit, Glob, Grep, Bash, WebFetch, WebSearch, Task, TodoWrite, AskUserQuestion, Skill, SlashCommand"
+    default: ""
+  examples:
+    type: str
+    required: false
+    description: "Usage examples demonstrating the skill"
+    default: ""
+  additional_notes:
+    type: str
+    required: false
+    description: "Any additional notes or best practices"
+    default: ""
+  version:
+    type: str
+    required: false
+    description: "Skill version"
+    default: "1.0.0"
+# Frontmatter structure with template placeholders
+frontmatter:
+  name: "{skill_name}"
+  description: "{description}"
+  allowed-tools: "{allowed_tools}"
+  version: "{version}"
+  created: "{date}"
+# Update policy for frontmatter (merge, replace, update, append)
+frontmatter_policy: merge
+# Document sections using nested hierarchical structure
+content:
+  purpose:
+    title: "Purpose"
+    level: 2
+    content: "{purpose}"
+  instructions:
+    title: "Instructions"
+    level: 2
+    content: "{instructions}"
+  examples:
+    title: "Examples"
+    level: 2
+    content: "{examples}"
+  notes:
+    title: "Additional Notes"
+    level: 2
+    content: "{additional_notes}"

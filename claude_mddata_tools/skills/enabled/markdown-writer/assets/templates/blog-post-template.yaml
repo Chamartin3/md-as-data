@@ -1,0 +1,54 @@
+parameters:
+  title:
+    type: str
+    required: true
+  author:
+    type: str
+    required: true
+  publish_date:
+    type: str
+    required: false
+    default: "{{date}}"
+  tags:
+    type: str
+    required: false
+    default: ""
+  excerpt:
+    type: str
+    required: false
+    default: ""
+
+frontmatter:
+  title: "{{title}}"
+  author: "{{author}}"
+  date: "{{publish_date}}"
+  tags: "{{tags}}"
+  excerpt: "{{excerpt}}"
+  draft: false
+
+content:
+  sections:
+    - id: introduction
+      title: "Introduction"
+      level: 2
+      content: |
+        {{excerpt}}
+
+    - id: main_content
+      title: "Main Content"
+      level: 2
+      content: |
+        Your main content here...
+
+    - id: conclusion
+      title: "Conclusion"
+      level: 2
+      content: |
+        Summary and final thoughts...
+
+    - id: references
+      title: "References"
+      level: 2
+      content: |
+        - Reference 1
+        - Reference 2

@@ -1,0 +1,10 @@
+{
+  "skill_name": "api-client-helper",
+  "description": "Helps design and implement REST API clients with best practices for authentication, error handling, and response parsing",
+  "allowed_tools": "Read, Write, Edit, Bash, WebFetch",
+  "purpose": "This skill provides comprehensive guidance for creating robust REST API clients. It covers:\n\n- API endpoint discovery and documentation review\n- Authentication methods (API keys, OAuth, JWT)\n- Request/response handling patterns\n- Error handling and retry logic\n- Rate limiting and throttling\n- Testing strategies",
+  "instructions": "When helping with API client development:\n\n1. **Analyze Requirements**\n   - Review API documentation or OpenAPI specs\n   - Identify authentication requirements\n   - Determine rate limits and constraints\n\n2. **Design Client Structure**\n   - Create base client class with auth handling\n   - Implement request/response wrappers\n   - Add error handling and retries\n\n3. **Implement Endpoints**\n   - Create method for each API endpoint\n   - Add type hints and documentation\n   - Include request validation\n\n4. **Testing**\n   - Write unit tests with mocked responses\n   - Create integration tests with real API calls\n   - Document test setup and credentials",
+  "examples": "## Example: Basic Client Structure\n\nCreate a base client class that handles authentication and common request patterns.\n\n## Example: Error Handling\n\nImplement retry logic with exponential backoff for handling transient failures and rate limits.",
+  "additional_notes": "## Best Practices\n\n- Always use connection pooling for multiple requests\n- Implement exponential backoff for retries\n- Cache responses when appropriate\n- Use environment variables for sensitive credentials\n- Log requests for debugging (without sensitive data)\n- Validate responses against expected schemas\n\n## Common Pitfalls\n\n- Hardcoding API credentials\n- Not handling rate limits\n- Ignoring HTTP status codes\n- Not setting request timeouts\n- Poor error messages for API failures",
+  "version": "1.0.0"
+}

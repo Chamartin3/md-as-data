@@ -1,22 +1,31 @@
 """Template filling engine - unified entry point for template substitution.
 
 This module consolidates all template filling logic into a single, cohesive interface.
-It handles parameter resolution, computed values, and placeholder substitution.
+It handles parameter resolution, computed values, placeholder substitution, and
+comprehensive parameter validation with enums, array constraints, and pattern matching.
 
 Public API:
 - TemplateFiller: Main class for filling templates with parameters
 - ComputedParam: Enum of available computed parameters
+
+Parameter Validation Features:
+- Enum validation with strict/non-strict modes and descriptions
+- Array constraints (min_items, max_items, unique_items)
+- Array item enum validation with pattern fallback
+- Regex pattern validation for strings and array items
+- Combined validation modes for flexible parameter acceptance
 """
 
 import json
 import os
 import re
 import sys
+import warnings
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import yaml
 
@@ -317,13 +326,17 @@ def _parse_param_value(value: str, param_def: ParameterDefinition) -> ParameterV
     elif param_type == ParameterType.DATE:
         return str(value)
     elif param_type == ParameterType.ARRAY:
-        return _parse_array_param(value, param_def.get("item_type"))
+        return _parse_array_param(value, param_def.get("item_type"), param_def)
     else:
         raise ValueError(f"Unsupported parameter type: {param_type}")
 
 
-def _parse_array_param(value: str, item_type: ParameterType | None) -> list[str]:
-    """Parse JSON array parameter with item type validation.
+def _parse_array_param(
+    value: str,
+    item_type: ParameterType | None,
+    param_def: ParameterDefinition | None = None,
+) -> list[str]:
+    """Parse JSON array parameter with item type validation and constraints.
 
     Returns list[str] to match ParameterValue type definition.
     Mixed-type arrays are converted to strings.
@@ -332,6 +345,12 @@ def _parse_array_param(value: str, item_type: ParameterType | None) -> list[str]
         parsed = json.loads(value)
         if not isinstance(parsed, list):
             raise ValueError(f"Expected JSON array, got {type(parsed)}")
+
+        # Validate array constraints if param_def provided
+        if param_def:
+            _validate_array_constraints(parsed, param_def)
+            _validate_array_item_enum(parsed, param_def)
+            _validate_array_item_pattern(parsed, param_def)
 
         # Validate item types if specified
         if item_type:
@@ -357,7 +376,36 @@ def _parse_array_param(value: str, item_type: ParameterType | None) -> list[str]
 def _validate_param_constraints(
     value: ParameterValue, param_def: ParameterDefinition
 ) -> None:
-    """Validate parameter against constraints (min, max, pattern)."""
+    """Validate parameter against constraints (min, max, pattern, enum)."""
+
+    # NEW: Enum constraint (check first for better error messages)
+    enum_values = param_def.get("enum")
+    if enum_values is not None:
+        enum_strict = param_def.get("enum_strict", True)
+        enum_descriptions = param_def.get("enum_descriptions", {})
+
+        if value not in enum_values:
+            # Build helpful message
+            allowed_str = ", ".join(str(v) for v in enum_values)
+            msg = f"Value '{value}' not in enum values: [{allowed_str}]"
+
+            if enum_descriptions:
+                msg += "\n\nAvailable options:"
+                for val in enum_values:
+                    desc = enum_descriptions.get(str(val), "")
+                    if desc:
+                        msg += f"\n  {val} - {desc}"
+                    else:
+                        msg += f"\n  {val}"
+
+            if enum_strict:
+                raise ValueError(msg)
+            else:
+                warnings.warn(
+                    f"Parameter validation warning: {msg}", UserWarning, stacklevel=2
+                )
+        return  # Skip other constraints after enum check
+
     # Min constraint
     min_val = param_def.get("min")
     if min_val is not None:
@@ -379,6 +427,126 @@ def _validate_param_constraints(
     if pattern and isinstance(value, str):
         if not re.match(pattern, value):
             raise ValueError(f"Value does not match pattern '{pattern}'")
+
+
+def _validate_array_constraints(
+    value: list[Any], param_def: ParameterDefinition
+) -> None:
+    """Validate array-specific constraints (min_items, max_items, unique_items).
+
+    Args:
+        value: The array value to validate
+        param_def: Parameter definition containing constraint specifications
+
+    Raises:
+        ValueError: If any constraint is violated with descriptive error messages
+    """
+    # Min items constraint
+    min_items = param_def.get("min_items")
+    if min_items is not None and len(value) < min_items:
+        raise ValueError(
+            f"Array must have at least {min_items} items, got {len(value)}"
+        )
+
+    # Max items constraint
+    max_items = param_def.get("max_items")
+    if max_items is not None and len(value) > max_items:
+        raise ValueError(f"Array must have at most {max_items} items, got {len(value)}")
+
+    # Unique items constraint
+    unique_items = param_def.get("unique_items")
+    if unique_items and len(value) != len(set(value)):
+        raise ValueError("Array items must be unique")
+
+
+def _validate_array_item_enum(value: list[Any], param_def: ParameterDefinition) -> None:
+    """Validate array items against enum constraints with pattern fallback.
+
+    When item_enum_strict=False and item_pattern is defined, items are accepted
+    if they match either the enum OR the pattern. Only warns/errors when items
+    match neither.
+
+    Args:
+        value: The array value to validate
+        param_def: Parameter definition containing enum and pattern specifications
+
+    Raises:
+        ValueError: If strict validation fails
+        UserWarning: If non-strict validation fails (via warnings.warn)
+    """
+    item_enum = param_def.get("item_enum")
+    if item_enum is None:
+        return
+
+    item_enum_strict = param_def.get("item_enum_strict", True)
+    item_enum_descriptions = param_def.get("item_enum_descriptions", {})
+    item_pattern = param_def.get("item_pattern")
+
+    for i, item in enumerate(value):
+        if item not in item_enum:
+            # If non-strict and pattern exists, check if item matches pattern
+            if not item_enum_strict and item_pattern and isinstance(item, str):
+                pattern = re.compile(item_pattern)
+                if pattern.match(item):
+                    continue  # Item matches pattern, allow it
+
+            # Build helpful message
+            allowed_str = ", ".join(str(v) for v in item_enum)
+            msg = f"Array item [{i}] = '{item}' not in enum values: [{allowed_str}]"
+
+            if item_enum_descriptions:
+                msg += "\n\nAvailable options:"
+                for val in item_enum:
+                    desc = item_enum_descriptions.get(str(val), "")
+                    if desc:
+                        msg += f"\n  {val} - {desc}"
+                    else:
+                        msg += f"\n  {val}"
+
+            if item_enum_strict:
+                raise ValueError(msg)
+            else:
+                warnings.warn(
+                    f"Parameter validation warning: {msg}", UserWarning, stacklevel=2
+                )
+
+
+def _validate_array_item_pattern(
+    value: list[Any], param_def: ParameterDefinition
+) -> None:
+    """Validate array items against regex pattern.
+
+    Only validates string items. Skips validation when non-strict item_enum
+    is present (handled by _validate_array_item_enum).
+
+    Args:
+        value: The array value to validate
+        param_def: Parameter definition containing pattern specification
+
+    Raises:
+        ValueError: If any string item doesn't match the pattern
+    """
+    item_pattern = param_def.get("item_pattern")
+    if item_pattern is None:
+        return
+
+    # If there's a non-strict item_enum, pattern validation is already handled there
+    item_enum = param_def.get("item_enum")
+    item_enum_strict = param_def.get("item_enum_strict", True)
+    if item_enum is not None and not item_enum_strict:
+        return
+
+    pattern = re.compile(item_pattern)
+
+    for i, item in enumerate(value):
+        # Pattern validation only applies to strings
+        if not isinstance(item, str):
+            continue
+
+        if not pattern.match(item):
+            raise ValueError(
+                f"Array item [{i}] = '{item}' does not match pattern '{item_pattern}'"
+            )
 
 
 def _load_params_from_file(filepath: str) -> dict[str, ParameterValue]:

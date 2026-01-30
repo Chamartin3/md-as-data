@@ -48,6 +48,24 @@ class ParameterDefinition(TypedDict, total=False):
     pattern: str  # Optional - regex pattern for str validation
     item_type: ParameterType  # Optional - type of array items
 
+    # Enum support
+    enum: list[str | int | float | bool | None]  # Optional - allowed values
+    enum_descriptions: dict[str, str]  # Optional - descriptions for enum values
+    enum_strict: bool  # Optional - strict mode for enum validation
+
+    # Array constraints
+    min_items: int  # Optional - minimum number of array items
+    max_items: int  # Optional - maximum number of array items
+    unique_items: bool  # Optional - whether array items must be unique
+
+    # Array item enum support
+    item_enum: list[str | int | float | bool | None]  # Optional - array item enum
+    item_enum_descriptions: dict[str, str]  # Optional - item enum descriptions
+    item_enum_strict: bool  # Optional - strict mode for item enum validation
+
+    # Pattern validation for array items
+    item_pattern: str  # Optional - regex pattern for array item validation
+
 
 # =============================================================================
 # Document Export Data Contracts
