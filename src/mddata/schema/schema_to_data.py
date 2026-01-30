@@ -5,7 +5,7 @@ markdown document templates with placeholder values.
 """
 
 from mddata.models import MarkdownDataDict, SectionData
-from mddata.models.schemas import DocumentSchema, SchemaFieldNames, ValueType
+from mddata.models.schema import DocumentSchema, SchemaFieldNames, ValueType
 
 
 def schema_to_markdown_dict(schema: DocumentSchema) -> MarkdownDataDict:
@@ -73,10 +73,10 @@ def schema_to_markdown_dict(schema: DocumentSchema) -> MarkdownDataDict:
             }
         ]
 
-    return {
-        "frontmatter": frontmatter,
-        "content": content,
-    }
+    return MarkdownDataDict(
+        frontmatter=frontmatter,
+        content=content,
+    )
 
 
 def _build_section_tree(

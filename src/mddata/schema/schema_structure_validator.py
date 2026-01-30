@@ -5,7 +5,7 @@ ensuring that schemas conform to expected format and field requirements.
 This is different from using schemas to validate documents.
 """
 
-from mddata.models.schemas import (
+from mddata.models.schema import (
     CURRENT_SCHEMA_VERSION,
     DocumentSchema,
     SchemaFieldNames,

@@ -1,0 +1,24 @@
+{
+  "frontmatter": {
+    "version": "2.0.0",
+    "tags": ["updated", "enhanced"],
+    "status": "review"
+  },
+  "sections": [
+    {
+      "id": "introduction",
+      "content": "# Introduction\n\nUpdated introduction content.",
+      "policy": "replace"
+    },
+    {
+      "id": "features",
+      "content": "- Feature D\n- Feature E",
+      "policy": "append"
+    },
+    {
+      "id": "new_section",
+      "content": "# New Section\n\nThis is a brand new section.",
+      "policy": "update"
+    }
+  ]
+}

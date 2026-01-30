@@ -4,7 +4,7 @@ Provides schema-based validation for markdown documents including
 frontmatter properties, section structure, and content types.
 """
 
-from ..models.schemas import (
+from ..models.schema import (
     DocumentSchema,
     PropertySchema,
     PropertyValidationSchema,
@@ -12,12 +12,10 @@ from ..models.schemas import (
     SchemaInferenceMode,
     SectionSchema,
     SectionValidationSchema,
-    ValidationLevel,
-    ValueType,
-)
-from ..models.schemas.validation import (
     ValidationIssue,
+    ValidationLevel,
     ValidationResult,
+    ValueType,
 )
 from .generator import SchemaGenerator, generate_schema
 from .schema_loader import load_schema

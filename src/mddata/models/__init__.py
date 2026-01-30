@@ -1,10 +1,17 @@
 """Centralized data models for mddata.
 
-Schema models are now in a separate subpackage.
-Import them as: from mddata.models.schemas import ...
+This package provides a clean vertical dependency structure:
+
+Level 0: base.py - Base types and enums
+Level 1: document.py - Document structures
+Level 2: schema.py, template.py - Validation and parameterization (parallel)
+Level 3: update.py - Update operations and results
+Level 4: data.py - Data interchange contracts
+
+Only types used outside this package are exported.
 """
 
-# Base types and enums
+# Level 0: Base types and enums
 from .base import (
     BlockType,
     FrontmatterProperties,
@@ -16,19 +23,11 @@ from .base import (
     UpdatePolicy,
 )
 
-# Data contracts (from contracts module)
-from .contracts import (
-    MarkdownDataDict,
-    MarkdownDataUpdate,
-    ParameterDefinition,
-    ParameterValue,
-    ResolvedParameters,
-    TemplateFile,
-)
+# Level 4: Data interchange contracts
+from .data import MarkdownDataDict
 
-# Document structure models
+# Level 1: Document structure models
 from .document import (
-    BatchOperationResult,
     Block,
     BlockData,
     BlockMetadata,
@@ -36,7 +35,6 @@ from .document import (
     BlocksQuery,
     ContentInput,
     ContentTree,
-    InputDataOptions,
     ParsedMarkdownData,
     Section,
     SectionBlocksData,
@@ -46,9 +44,31 @@ from .document import (
     SectionQuery,
     SectionsData,
     SectionsMap,
-    SectionUpdate,
     TaskItemData,
 )
+
+# Level 2: Template parameter types
+from .template import (
+    ParameterDefinition,
+    ParameterValue,
+    ResolvedParameters,
+)
+
+# Level 3: Update operation types
+from .update import (
+    BatchOperationResult,
+    InputDataDictOptions,
+    InputDataOptions,
+    InputDictSectionContent,
+    InputDictSectionData,
+    InputDictSectionObject,
+    MarkdownDataUpdate,
+    SectionUpdate,
+    UpdateInputDict,
+)
+
+# Schema types are in separate subpackage for organization
+# Import as: from mddata.models.schema import ...
 
 __all__ = [
     # Base types and enums
@@ -79,13 +99,19 @@ __all__ = [
     "SectionInputData",
     "SectionContentData",
     "SectionBlocksData",
-    "SectionUpdate",
-    "BatchOperationResult",
-    # Data contracts
-    "MarkdownDataDict",
-    "MarkdownDataUpdate",
+    # Template parameter types
     "ParameterDefinition",
     "ParameterValue",
     "ResolvedParameters",
-    "TemplateFile",
+    # Update operation types
+    "UpdateInputDict",
+    "InputDictSectionContent",
+    "InputDictSectionData",
+    "InputDictSectionObject",
+    "InputDataDictOptions",
+    "SectionUpdate",
+    "BatchOperationResult",
+    "MarkdownDataUpdate",
+    # Data interchange contracts
+    "MarkdownDataDict",
 ]

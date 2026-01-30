@@ -1,8 +1,10 @@
 """CLI error handling utilities."""
 
+import traceback
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import wraps
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import typer
 
@@ -10,6 +12,60 @@ from .context import cli_context
 from .printers import MarkdownPrinter
 
 F = TypeVar("F", bound=Callable)
+
+
+@dataclass
+class ErrorContext:
+    """Enhanced error context for debugging.
+
+    Provides detailed information about where an error occurred and what
+    was being attempted, making it easier to diagnose issues.
+    """
+
+    source_file: str
+    line_number: int
+    function_name: str
+    operation: str | None = None
+    variable_name: str | None = None
+    variable_value: Any = None
+    hint: str | None = None
+
+    def format(self, include_traceback: bool = False) -> str:
+        """Format as user-friendly error message.
+
+        Args:
+            include_traceback: Whether to include full traceback
+
+        Returns:
+            Formatted error message string
+        """
+        lines = [
+            "\n[bold red]Error Location:[/bold red]",
+            f"  Source: {self.source_file}:{self.line_number}",
+            f"  Function: {self.function_name}()",
+        ]
+
+        if self.operation:
+            lines.append(f"  Operation: {self.operation}")
+
+        if self.variable_name:
+            lines.append(f"  Variable: {self.variable_name}")
+
+            # Show variable value if it's a simple type
+            if self.variable_value is not None:
+                if isinstance(self.variable_value, (str, int, float, bool)):
+                    lines.append(f"  Value: {self.variable_value}")
+                else:
+                    lines.append(f"  Type: {type(self.variable_value).__name__}")
+
+        if self.hint:
+            lines.append(f"\n[yellow]Hint:[/yellow] {self.hint}")
+
+        if include_traceback:
+            lines.append("\n[bold]Traceback:[/bold]")
+            lines.append(traceback.format_exc())
+
+        return "\n".join(lines)
 
 
 class CLIError(Exception):

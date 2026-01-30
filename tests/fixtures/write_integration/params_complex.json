@@ -1,0 +1,13 @@
+{
+  "project_name": "Advanced Integration Test",
+  "author": "Test Suite",
+  "version": "2.0.0",
+  "features": [
+    "Nested section support",
+    "Template parameters",
+    "Schema validation",
+    "Multiple merge policies"
+  ],
+  "status": "review",
+  "tags": ["testing", "integration", "advanced"]
+}

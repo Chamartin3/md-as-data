@@ -4,15 +4,13 @@ import re
 from typing import Any
 
 from ..models import FrontmatterValue
-from ..models.schemas import (
+from ..models.schema import (
     PropertySchema,
     PropertyValidationType,
-    ValidationLevel,
-    ValueType,
-)
-from ..models.schemas.validation import (
     ValidationIssue,
     ValidationIssueTypes,
+    ValidationLevel,
+    ValueType,
 )
 
 

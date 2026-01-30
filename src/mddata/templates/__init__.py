@@ -8,12 +8,11 @@ Public API:
 Note: Template loading is now handled by the unified data loader in mddata.utils
 """
 
-from ..models import ParameterType
-from ..models.contracts import (
+from ..models import (
     ParameterDefinition,
+    ParameterType,
     ParameterValue,
     ResolvedParameters,
-    TemplateFile,
 )
 from .filler import ComputedParam, TemplateFiller
 
@@ -25,6 +24,5 @@ __all__ = [
     "ParameterType",
     "ParameterDefinition",
     "ParameterValue",
-    "TemplateFile",
     "ResolvedParameters",
 ]

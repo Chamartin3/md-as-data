@@ -27,7 +27,7 @@ from .models import (
 )
 
 # Schema validation functionality
-from .models.schemas import (
+from .models.schema import (
     DocumentSchema,
     PropertySchema,
     SectionSchema,

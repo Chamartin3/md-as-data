@@ -2,200 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, NamedTuple, TypedDict, Union
 
 from .base import (
     BlockType,
     FrontmatterProperties,
-    FrontmatterValue,
     HeadingLevel,
     UpdatePolicy,
 )
-
-
-@dataclass
-class SectionUpdate:
-    """Section update with validation and recursive structure support.
-
-    This dataclass represents a section update operation that can:
-    - Create flat updates (backward compatible with BatchChanges)
-    - Create hierarchical updates (new nested structure)
-    - Validate section data
-    - Convert to SectionData format
-    - Support recursive child sections
-    """
-
-    # Required fields
-    id: str  # Section identifier
-    content: str | None = None  # New content (raw markdown) - optional for structured
-
-    # Update metadata
-    policy: UpdatePolicy = UpdatePolicy.UPDATE
-
-    # Optional structured data (from SectionData)
-    title: str | None = None
-    level: int | None = None
-    path: str | None = None
-    blocks: list[BlockData] = field(default_factory=list)
-    children: list[SectionUpdate] = field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        """Validate section update after initialization."""
-        # Convert string policy to enum
-        if isinstance(self.policy, str):
-            self.policy = UpdatePolicy[self.policy.upper()]
-
-        # Validate that we have either content or structured data
-        if not self.content and not self.blocks and not self.children:
-            raise ValueError(
-                f"SectionUpdate '{self.id}' must have content, blocks, or children"
-            )
-
-        # Validate level if provided
-        if self.level is not None and not (1 <= self.level <= 6):
-            raise ValueError(f"Invalid heading level {self.level} (must be 1-6)")
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format (for JSON serialization).
-
-        Returns dict compatible with old SectionUpdate TypedDict format.
-        """
-        result: dict[str, Any] = {
-            "id": self.id,
-            "policy": (
-                self.policy.value
-                if isinstance(self.policy, UpdatePolicy)
-                else self.policy
-            ),
-        }
-
-        # Add content if present
-        if self.content is not None:
-            result["content"] = self.content
-
-        # Add optional structured fields if present
-        if self.title is not None:
-            result["title"] = self.title
-        if self.level is not None:
-            result["level"] = self.level
-        if self.path is not None:
-            result["path"] = self.path
-        if self.blocks:
-            result["blocks"] = self.blocks
-        if self.children:
-            # Recursively convert children
-            result["children"] = [child.to_dict() for child in self.children]
-
-        return result
-
-    def to_section_data(self) -> SectionData:
-        """Convert to SectionData format (for document structure).
-
-        Returns SectionData compatible with document model.
-        """
-        # Generate defaults if not provided
-        title = self.title or self._generate_title_from_id()
-        level = self.level or 1
-        path = self.path or self.id
-
-        section_data: SectionData = {
-            "id": self.id,
-            "title": title,
-            "level": level,
-            "path": path,
-            "blocks": self.blocks if self.blocks else None,
-            "children": (
-                [child.to_section_data() for child in self.children]
-                if self.children
-                else None
-            ),
-        }
-
-        return section_data
-
-    def _generate_title_from_id(self) -> str:
-        """Generate human-readable title from section ID."""
-        return self.id.replace("_", " ").replace("-", " ").title()
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> SectionUpdate:
-        """Create SectionUpdate from dictionary.
-
-        Supports both old flat format and new hierarchical format.
-        """
-        # Parse policy
-        policy_value = data.get("policy", "update")
-        if isinstance(policy_value, str):
-            policy = UpdatePolicy[policy_value.upper()]
-        else:
-            policy = policy_value
-
-        # Parse children recursively
-        children_data = data.get("children", [])
-        children = [cls.from_dict(child) for child in children_data]
-
-        return cls(
-            id=data["id"],
-            content=data.get("content"),
-            policy=policy,
-            title=data.get("title"),
-            level=data.get("level"),
-            path=data.get("path"),
-            blocks=data.get("blocks", []),
-            children=children,
-        )
-
-    def add_child(self, child: SectionUpdate) -> None:
-        """Add a child section update."""
-        self.children.append(child)
-
-    def has_children(self) -> bool:
-        """Check if section has child updates."""
-        return bool(self.children)
-
-    def is_hierarchical(self) -> bool:
-        """Check if this is a hierarchical update (has structured data)."""
-        return bool(self.title or self.level or self.blocks or self.children)
-
-    def is_flat(self) -> bool:
-        """Check if this is a flat update (just id and content)."""
-        return bool(self.content) and not self.is_hierarchical()
-
-    def validate(self) -> list[str]:
-        """Validate section update and return list of validation errors."""
-        errors: list[str] = []
-
-        # Validate ID
-        if not self.id or not self.id.strip():
-            errors.append("Section ID cannot be empty")
-
-        # Validate content requirement
-        if not self.content and not self.blocks and not self.children:
-            errors.append(f"Section '{self.id}' must have content, blocks, or children")
-
-        # Validate level
-        if self.level is not None and not (1 <= self.level <= 6):
-            errors.append(f"Invalid level {self.level} for section '{self.id}'")
-
-        # Recursively validate children
-        for i, child in enumerate(self.children):
-            child_errors = child.validate()
-            for error in child_errors:
-                errors.append(f"Child {i} ({child.id}): {error}")
-
-        return errors
-
-
-class BatchOperationResult(TypedDict):
-    """Result of batch operation."""
-
-    success: bool
-    changes_count: int
-    frontmatter_changes: int
-    section_changes: int
-    errors: list[str]
-    warnings: list[str]
 
 
 class SectionQuery(NamedTuple):
@@ -221,14 +35,6 @@ class TaskItemData(TypedDict, total=False):
     symbol: str  # Checkbox character (x, space, !, ~, ?, etc.)
     uid: str  # Short unique identifier for CLI reference
     subtasks: list[TaskItemData]  # Optional subtasks
-
-
-# Public input type for external API (simplified)
-InputDataOptions = Union[
-    FrontmatterValue,  # Simple frontmatter value (inferred)
-    dict,  # Various dict formats with optional policy
-    "Section",  # Section object
-]
 
 
 class BlockMetadata(TypedDict, total=False):
@@ -480,24 +286,28 @@ class Section:
             ValueError: If section_data is malformed or contains invalid references
             TypeError: If section_data structure is invalid
         """
-        # 1. Validate input structure
+        # 1. Fill in missing path if needed (default to ID)
+        if "path" not in section_data:
+            section_data["path"] = section_data["id"]
+
+        # 2. Validate input structure
         cls._validate_section_data(section_data)
 
-        # 2. Create base section
+        # 3. Create base section (ID auto-generated from title)
         section = cls(
             title=section_data["title"],
             level=HeadingLevel(section_data["level"]),
             parent_path=parent_path,
         )
 
-        # 3. Process blocks (standard SectionData format)
+        # 4. Process blocks (standard SectionData format)
         blocks = section_data.get("blocks")
         if blocks is not None:
             for block_data in blocks:
                 block = Block.from_dict(block_data, section.id)
                 section.add_block(block)
 
-        # 4. Add subsections recursively
+        # 5. Add subsections recursively
         children = section_data.get("children")
         if children is not None:
             for subsection_data in children:
@@ -567,6 +377,10 @@ class Section:
 
         return "\n".join(lines)
 
+    def to_markdown(self) -> str:
+        """Convert section to markdown text representation (alias for to_text)."""
+        return self.to_text()
+
     def __repr__(self) -> str:
         level_name = self.level.name if hasattr(self.level, "name") else str(self.level)
         return (
@@ -627,9 +441,16 @@ class ContentTree:
             blocks.extend(section.blocks)
         return blocks
 
+    # Helper methods
+    def _index_children(self, section: Section) -> None:
+        """Recursively index all children of a section."""
+        for child in section.children:
+            self._sections_index[child.id] = child
+            self._index_children(child)
+
     # Mutation methods
     def add_section(self, section: Section, parent_path: str | None = None) -> None:
-        """Add section to tree."""
+        """Add section to tree and recursively index all children."""
         if parent_path:
             if Section.is_path(parent_path):
                 parent = self.get_section(parent_path)
@@ -642,7 +463,12 @@ class ContentTree:
                 self.root.add_subsection(section)
         else:
             self.root.add_subsection(section)
+
+        # Index this section
         self._sections_index[section.id] = section
+
+        # Recursively index all children
+        self._index_children(section)
 
     # Policy-based mutation methods
     def set_section(
@@ -669,15 +495,30 @@ class ContentTree:
         if not isinstance(section, Section):
             raise TypeError(f"Expected Section object, got {type(section)}")
 
-        # 2. Find target section
-        target_section = self.get_section(section_path)
+        # 2. Find target section using query for fuzzy matching
+        query = self.query_section(section_path)
 
-        # 3. Handle new section creation
-        if not target_section:
+        # 3. Check for ambiguous errors (multiple matches)
+        # "not found" errors are OK - they mean we're creating a new section
+        if query.error and "not found" not in query.error.lower():
+            raise ValueError(query.error)
+
+        # 4. Handle new section creation (query.parent indicates valid new subsection)
+        if query.parent and not query.section:
+            # Adjust section level to be parent level + 1
+            required_level = min(query.parent.level + 1, HeadingLevel.H6)
+            if section.level != required_level:
+                section.level = required_level
+            self.add_section(section, query.parent.path)
+            return
+
+        # 5. Handle new top-level section (no match found)
+        if not query.section:
             self.add_section(section)
             return
 
-        # 4. Apply policy-specific logic
+        # 6. Apply policy-specific logic to existing section
+        target_section = query.section
         if policy == UpdatePolicy.REPLACE:
             self._apply_replace_policy(target_section, section, section_path)
         elif policy == UpdatePolicy.UPDATE:
@@ -692,8 +533,19 @@ class ContentTree:
     ) -> None:
         """Complete replacement of target section and all subsections."""
 
-        # 1. Preserve parent relationship
+        # 1. Preserve parent relationship and position
         parent_path = target_section.parent_path
+        parent = self.get_section(parent_path) if parent_path else self.root
+
+        # Find the position of the target section
+        if parent:
+            children_list = parent.children
+            try:
+                target_index = children_list.index(target_section)
+            except ValueError:
+                target_index = len(children_list)  # Append if not found
+        else:
+            target_index = 0
 
         # 2. Remove target section from parent
         if parent_path:
@@ -711,11 +563,16 @@ class ContentTree:
         # 3. Configure new section
         new_section.parent_path = parent_path
 
-        # 4. Add new section
-        self.add_section(new_section, parent_path)
+        # 4. Insert new section at the same position as the old one
+        parent = self.get_section(parent_path) if parent_path else self.root
+        if parent:
+            parent.children.insert(target_index, new_section)
 
-        # 5. Update sections index
+        # 5. Index the new section and its children
         self._sections_index[new_section.id] = new_section
+        self._index_children(new_section)
+
+        # 6. Remove old section from index if ID changed
         if new_section.id != target_section.id:
             if target_section.id in self._sections_index:
                 del self._sections_index[target_section.id]

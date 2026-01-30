@@ -7,7 +7,7 @@ with automatic format detection based on file extensions.
 import json
 from pathlib import Path
 
-from mddata.models.schemas import DocumentSchema
+from mddata.models.schema import DocumentSchema
 
 
 def load_schema(source: str | Path) -> DocumentSchema:

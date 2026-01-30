@@ -1,0 +1,50 @@
+frontmatter:
+  title:
+    type: str
+    required: true
+    validations:
+      - type: min_length
+        value: 1
+        message: "Title cannot be empty"
+
+  author:
+    type: str
+    required: true
+
+  version:
+    type: str
+    required: false
+    default: "1.0.0"
+    pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+  status:
+    type: str
+    required: true
+    enum:
+      - draft
+      - review
+      - published
+
+  tags:
+    type: array
+    required: false
+    item_type: str
+
+sections:
+  introduction:
+    required: true
+    validation:
+      min_blocks: 1
+      allowed_content:
+        - paragraph
+        - heading
+
+  features:
+    required: false
+    validation:
+      allowed_content:
+        - paragraph
+        - list
+        - heading
+
+validation_level: strict

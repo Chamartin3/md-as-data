@@ -1,13 +1,13 @@
 """Render command for creating markdown files from structured data."""
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 
 from mddata import MarkdownFile
 from mddata.models import MarkdownDataDict, MarkdownDataUpdate
-from mddata.models.schemas import DocumentSchema
+from mddata.models.schema import DocumentSchema
 from mddata.schema import SchemaValidationError, load_schema, validate_schema_structure
 from mddata.utils import (
     DataLoadError,
@@ -161,7 +161,7 @@ def load_data_safely(
         # Check if it has hierarchical content or flat sections
         if update.has_hierarchical_content():
             # Convert to MarkdownDataDict for rendering
-            return update.as_markdown_dict(), None
+            return cast(MarkdownDataDict, update.as_markdown_dict()), None
         else:
             # Return as update to be applied to empty document
             return None, update

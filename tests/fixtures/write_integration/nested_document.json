@@ -1,0 +1,109 @@
+{
+  "frontmatter": {
+    "title": "Deeply Nested Document",
+    "version": "1.0",
+    "type": "integration-test"
+  },
+  "sections": [
+    {
+      "id": "introduction",
+      "title": "Introduction",
+      "level": 1,
+      "content": "# Introduction\n\nThis document tests deeply nested section operations.",
+      "children": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "level": 2,
+          "content": "## Overview\n\nOverview of the nested structure.",
+          "children": [
+            {
+              "id": "purpose",
+              "title": "Purpose",
+              "level": 3,
+              "content": "### Purpose\n\nExplains the purpose of this structure.",
+              "children": [
+                {
+                  "id": "goals",
+                  "title": "Goals",
+                  "level": 4,
+                  "content": "#### Goals\n\nDefines specific goals.",
+                  "children": [
+                    {
+                      "id": "primary_goals",
+                      "title": "Primary Goals",
+                      "level": 5,
+                      "content": "##### Primary Goals\n\nFirst level of primary goals."
+                    },
+                    {
+                      "id": "secondary_goals",
+                      "title": "Secondary Goals",
+                      "level": 5,
+                      "content": "##### Secondary Goals\n\nSecondary objectives."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "scope",
+          "title": "Scope",
+          "level": 2,
+          "content": "## Scope\n\nDefines what is in scope."
+        }
+      ]
+    },
+    {
+      "id": "implementation",
+      "title": "Implementation",
+      "level": 1,
+      "content": "# Implementation\n\nImplementation details.",
+      "children": [
+        {
+          "id": "architecture",
+          "title": "Architecture",
+          "level": 2,
+          "content": "## Architecture\n\nArchitecture overview.",
+          "children": [
+            {
+              "id": "components",
+              "title": "Components",
+              "level": 3,
+              "content": "### Components\n\nSystem components.",
+              "children": [
+                {
+                  "id": "frontend",
+                  "title": "Frontend",
+                  "level": 4,
+                  "content": "#### Frontend\n\nFrontend architecture."
+                },
+                {
+                  "id": "backend",
+                  "title": "Backend",
+                  "level": 4,
+                  "content": "#### Backend\n\nBackend architecture.",
+                  "children": [
+                    {
+                      "id": "api_layer",
+                      "title": "API Layer",
+                      "level": 5,
+                      "content": "##### API Layer\n\nAPI design and endpoints."
+                    },
+                    {
+                      "id": "database",
+                      "title": "Database",
+                      "level": 5,
+                      "content": "##### Database\n\nDatabase schema and design."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

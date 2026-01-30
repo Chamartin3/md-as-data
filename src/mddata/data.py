@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, TypedDict, TypeVar, cast, get_type_hints
+from typing import Any, TypeVar, cast, get_type_hints
 
 # Removed: from .generation.template import generate_template
 # Now using schema_to_markdown_dict from validation module
@@ -16,50 +16,24 @@ from .models import (
     FrontmatterProperties,
     FrontmatterPropertyValue,
     FrontmatterValue,
+    InputDataDictOptions,
+    InputDataOptions,
+    InputDictSectionContent,
+    InputDictSectionData,
+    InputDictSectionObject,
     MarkdownDataDict,
     MarkdownDataUpdate,
     ParsedMarkdownData,
     Section,
-    SectionData,
     SectionQuery,
     SectionsData,
     TaskItemData,
     UpdatePolicy,
 )
-from .models.schemas import DocumentSchema, ValidationLevel
+from .models.schema import DocumentSchema, ValidationLevel
 from .processor import MarkdownProcessor
 from .schema import SchemaValidator
 from .tasklist import TaskList
-
-
-class UpdateInputDict(TypedDict, total=False):
-    """Base for dict to define data for update."""
-
-    policy: UpdatePolicy
-
-
-class InputDictSectionContent(UpdateInputDict):
-    """Section input using markdown text."""
-
-    content: str
-
-
-class InputDictSectionData(SectionData, UpdateInputDict):
-    """Structured section input (when section fields are provided
-    additionally to policy"""
-
-    pass
-
-
-class InputDictSectionObject(UpdateInputDict):
-    """Explicit section input (when Section object is provided)"""
-
-    section: Section
-
-
-InputDataDictOptions = (
-    InputDictSectionContent | InputDictSectionData | InputDictSectionObject
-)
 
 TDict = TypeVar("TDict", bound=InputDataDictOptions)
 
@@ -72,9 +46,6 @@ def validate_typed_dict(
         key in data and isinstance(data[key], hint) for key, hint in hints.items()
     )
     return cast(TDict, data) if matches else None
-
-
-InputDataOptions = FrontmatterValue | Section | InputDataDictOptions
 
 
 class UpdateOperationTypes(Enum):
@@ -220,12 +191,12 @@ class UpdateOperation:
                 raise ValueError(f"Cannot convert {type(value)} to Section")
 
         if self.type in self.text_inputs:
-            if self == self.TYPES.SECTION_TEXT_STRUCTURED:
+            if self.type == self.TYPES.SECTION_TEXT_STRUCTURED:
                 dict_value = cast(InputDictSectionContent, value)
                 text = dict_value["content"]
             else:
                 text = cast(str, value)
-                return self._get_section_from_text(text, path)
+            return self._get_section_from_text(text, path)
 
         if self.type == self.TYPES.SECTION_STRUCTURED:
             dict_value = cast(InputDictSectionData, value)
@@ -513,22 +484,22 @@ class MarkdownData:
             # Replace or set new property
             self._frontmatter[key] = new_value
         elif policy in (UpdatePolicy.MERGE, UpdatePolicy.UPDATE):
-            # Smart merge based on value types
-            # (MERGE and UPDATE behave the same for frontmatter)
-            if isinstance(existing_value, list) and isinstance(new_value, list):
-                # Merge lists, avoiding duplicates
-                merged_list = existing_value.copy()
-                for item in new_value:
-                    if item not in merged_list:
-                        merged_list.append(item)
-                self._frontmatter[key] = merged_list
-            elif isinstance(existing_value, dict) and isinstance(new_value, dict):
+            # MERGE/UPDATE: Merge property values intelligently
+            if isinstance(existing_value, dict) and isinstance(new_value, dict):
                 # Merge dictionaries
                 merged_dict = existing_value.copy()
                 merged_dict.update(new_value)
                 self._frontmatter[key] = merged_dict
+            elif isinstance(existing_value, list) and isinstance(new_value, list):
+                # Merge lists without duplicates
+                # Preserves order (original items first)
+                merged_list = existing_value.copy()
+                for item in new_value:
+                    if item not in merged_list:
+                        merged_list.append(item)
+                self._frontmatter[key] = cast(FrontmatterValue, merged_list)
             else:
-                # For non-mergeable types, replace
+                # For all other types, replace
                 self._frontmatter[key] = new_value
         elif policy == UpdatePolicy.APPEND:
             # Append to existing value (arrays only)
@@ -794,7 +765,9 @@ class MarkdownData:
     # Serialization
     def to_dict(self) -> MarkdownDataDict:
         """Convert to JSON-serializable dictionary."""
-        return {"frontmatter": self.frontmatter, "content": self.content.to_dict()}
+        return MarkdownDataDict(
+            frontmatter=self.frontmatter, content=self.content.to_dict()
+        )
 
     @classmethod
     def from_schema(cls, schema: DocumentSchema) -> "MarkdownData":

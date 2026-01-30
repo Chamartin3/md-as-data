@@ -1,0 +1,75 @@
+parameters:
+  project_name:
+    type: str
+    required: true
+    description: "Name of the project"
+
+  author:
+    type: str
+    required: true
+    description: "Project author"
+
+  version:
+    type: str
+    required: false
+    default: "1.0.0"
+    description: "Project version"
+
+  features:
+    type: array
+    required: false
+    default: []
+    description: "List of features"
+
+  status:
+    type: str
+    required: false
+    default: "draft"
+    enum:
+      - draft
+      - review
+      - published
+    description: "Project status"
+
+  tags:
+    type: array
+    required: false
+    default: []
+    description: "Project tags"
+
+frontmatter:
+  title: "{project_name}"
+  author: "{author}"
+  version: "{version}"
+  status: "{status}"
+  tags: "{tags}"
+  features: "{features}"
+
+sections:
+  - id: introduction
+    content: |
+      # Introduction
+
+      Welcome to **{project_name}** version {version}.
+
+      This project is authored by {author}.
+
+  - id: features
+    content: |
+      # Features
+
+      Key features of {project_name}:
+
+      {features}
+
+  - id: status
+    content: |
+      # Project Status
+
+      Current status: **{status}**
+
+  - id: metadata
+    content: |
+      # Metadata
+
+      Tags: {tags}

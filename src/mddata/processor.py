@@ -138,8 +138,18 @@ class MarkdownProcessor:
             section.id = section_id
             section.add_block(block)
 
-        mdtitle = f"{'#' * level} {title}\n\n"
-        temp_markdown = f"{mdtitle}\n\n{text}"
+        # Check if text already starts with a heading
+        text_stripped = text.lstrip()
+        already_has_heading = text_stripped.startswith("#")
+
+        if already_has_heading:
+            # Text already has heading, use it directly
+            temp_markdown = text
+        else:
+            # Add heading to the text
+            mdtitle = f"{'#' * level} {title}\n\n"
+            temp_markdown = f"{mdtitle}{text}"
+
         parsed_data = self.parse(temp_markdown)
         content_tree = parsed_data["content"]
         if not content_tree or not content_tree.get_all_sections():

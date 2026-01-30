@@ -29,6 +29,7 @@ from typing import Any, TypedDict
 
 import yaml
 
+from mddata.errors import ParameterValidationError
 from mddata.models import (
     MarkdownDataUpdate,
     ParameterDefinition,
@@ -378,6 +379,12 @@ def _validate_param_constraints(
 ) -> None:
     """Validate parameter against constraints (min, max, pattern, enum)."""
 
+    # Array constraints (check first for arrays)
+    if isinstance(value, list):
+        _validate_array_constraints(value, param_def)
+        _validate_array_item_enum(value, param_def)
+        return  # Skip other constraints for arrays
+
     # NEW: Enum constraint (check first for better error messages)
     enum_values = param_def.get("enum")
     if enum_values is not None:
@@ -592,8 +599,16 @@ def _parse_cli_params(
     definitions: dict[str, ParameterDefinition],
     computed: ResolvedParameters,
     params_file: str | None = None,
+    params_dict: dict[str, Any] | None = None,
 ) -> ResolvedParameters:
     """Parse and validate CLI parameters with precedence.
+
+    Precedence order (lowest to highest):
+    1. Computed parameters
+    2. Template defaults
+    3. Params file
+    4. Params dict
+    5. CLI params
 
     NOTE: The operations layer now validates parameters BEFORE calling this function,
     so this validation is a safety net for direct API usage.
@@ -613,6 +628,16 @@ def _parse_cli_params(
     if params_file:
         file_params = _load_params_from_file(params_file)
         resolved_values.update(file_params)
+
+    # Load from params dict if specified (higher precedence than file)
+    if params_dict:
+        # Validate and parse each parameter from dict
+        for key, value in params_dict.items():
+            if key in definitions:
+                param_def = definitions[key]
+                # Value is already parsed from JSON/YAML, just validate
+                _validate_param_constraints(value, param_def)
+                resolved_values[key] = value
 
     # Track stdin usage to prevent multiple consumption
     stdin_used = False
@@ -666,11 +691,8 @@ def _parse_cli_params(
         # Enhanced error message
         provided = [k for k in resolved_values.keys() if k not in computed]
         available = list(definitions.keys())
-        raise ValueError(
-            f"Missing required parameters: {', '.join(missing)}\n"
-            f"Provided: {', '.join(provided) if provided else 'None'}\n"
-            f"Available: {', '.join(available)}\n"
-            f"\nNote: Use load_and_validate_data() for pre-validation"
+        raise ParameterValidationError(
+            missing_params=missing, provided_params=provided, available_params=available
         )
 
     return resolved_values
@@ -709,10 +731,22 @@ class TemplateFiller:
         self,
         cli_params: list[str] | None = None,
         params_file: str | None = None,
+        params_dict: dict[str, Any] | None = None,
     ) -> MarkdownDataUpdate:
-        """Fill template with parameters and return ready-to-apply update."""
+        """Fill template with parameters and return ready-to-apply update.
+
+        Args:
+            cli_params: List of KEY=VALUE parameter strings
+            params_file: Path to parameter file (JSON/YAML)
+            params_dict: Dictionary of parameters (pre-loaded)
+
+        Returns:
+            Filled MarkdownDataUpdate ready to apply
+        """
         # Resolve all parameters with proper precedence
-        resolved_params = self._resolve_all_parameters(cli_params or [], params_file)
+        resolved_params = self._resolve_all_parameters(
+            cli_params or [], params_file, params_dict
+        )
 
         # Convert template to dict for substitution
         template_dict = self.template.to_dict()
@@ -729,6 +763,7 @@ class TemplateFiller:
         self,
         cli_params: list[str],
         params_file: str | None,
+        params_dict: dict[str, Any] | None = None,
     ) -> ResolvedParameters:
         """Resolve parameters with proper precedence."""
         # Get computed parameters (cache for efficiency)
@@ -743,6 +778,7 @@ class TemplateFiller:
             self.template.parameters,
             computed,
             params_file=params_file,
+            params_dict=params_dict,
         )
 
         # Resolve computed placeholders in parameter values themselves

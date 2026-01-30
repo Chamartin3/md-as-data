@@ -10,7 +10,7 @@ from .models import (
     ParsedMarkdownData,
     Section,
 )
-from .models.schemas import DocumentSchema
+from .models.schema import DocumentSchema
 from .processor import MarkdownProcessor
 
 
@@ -125,21 +125,21 @@ class MarkdownFile:
             "content": content_tree,
         }
 
-        # 4. Serialize to markdown text
+        # 4. Create MarkdownData directly from parsed structures (preserves custom IDs)
+        from .data import MarkdownData
+
+        mddata = MarkdownData(parsed_data, schema=schema)
+
+        # 5. Serialize to markdown text for _raw_content
         processor = MarkdownProcessor()
         markdown_text = processor.serialize_parsed_data(parsed_data)
 
-        # 5. Create MarkdownFile instance with the generated content
+        # 6. Create MarkdownFile instance directly (bypass __init__ to avoid re-parsing)
         target_path = filepath if filepath else "untitled.md"
-        md_file = cls(target_path, raw_content=markdown_text)
-
-        # 6. If schema provided, re-initialize MarkdownData with schema
-        if schema:
-            # Re-parse with schema for validation
-            parsed_with_schema = processor.parse(markdown_text)
-            from .data import MarkdownData
-
-            md_file.mddata = MarkdownData(parsed_with_schema, schema=schema)
+        md_file = object.__new__(cls)
+        md_file.filepath = Path(target_path)
+        md_file._raw_content = markdown_text
+        md_file.mddata = mddata
 
         return md_file
 

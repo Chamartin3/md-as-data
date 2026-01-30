@@ -1,0 +1,22 @@
+{
+  "frontmatter": {
+    "title": "Base Document",
+    "author": "Original Author",
+    "version": "1.0.0",
+    "tags": ["original", "base"]
+  },
+  "sections": [
+    {
+      "id": "introduction",
+      "content": "# Introduction\n\nOriginal introduction content.\n\nThis has multiple paragraphs."
+    },
+    {
+      "id": "features",
+      "content": "# Features\n\n- Feature A\n- Feature B\n- Feature C"
+    },
+    {
+      "id": "conclusion",
+      "content": "# Conclusion\n\nOriginal conclusion."
+    }
+  ]
+}

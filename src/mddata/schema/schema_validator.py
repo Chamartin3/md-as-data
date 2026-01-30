@@ -2,14 +2,12 @@
 
 from typing import Any
 
-from ..models.schemas import (
+from ..models.schema import (
     CURRENT_SCHEMA_VERSION,
     DocumentSchema,
     DocumentSchemaObj,
-    ValidationLevel,
-)
-from ..models.schemas.validation import (
     ValidationIssue,
+    ValidationLevel,
     ValidationResult,
 )
 from .schema_property_validator import PropertyValidator
@@ -88,14 +86,7 @@ class SchemaValidator:
     def _validate_schema_version(self) -> None:
         """Validate schema version compatibility."""
         if not self.schema.version:
-            import warnings
-
-            warnings.warn(
-                "Schema missing version field. Assuming legacy format (0.0.0). "
-                "Please regenerate schema or add version field.",
-                UserWarning,
-                stacklevel=3,
-            )
+            # Version field is optional - no warning needed
             return
 
         schema_version = self.schema.version

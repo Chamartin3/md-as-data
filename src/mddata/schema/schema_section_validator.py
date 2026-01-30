@@ -3,14 +3,12 @@
 from typing import Any
 
 from ..models import BlockType, Section
-from ..models.schemas import (
+from ..models.schema import (
     SchemaFieldNames,
     SectionSchema,
-    ValidationLevel,
-)
-from ..models.schemas.validation import (
     ValidationIssue,
     ValidationIssueTypes,
+    ValidationLevel,
 )
 
 
@@ -42,8 +40,13 @@ class SectionValidator:
         if not content:
             # No content - check for required sections
             for section_id, section_schema in schema.items():
-                validation_config = section_schema.get(SchemaFieldNames.VALIDATION, {})
-                if validation_config.get("required", False):
+                # Check 'required' field at both section level and in validation config
+                is_required = section_schema.get("required", False)
+                if not is_required:
+                    validation_config = section_schema.get("validation", {})
+                    is_required = validation_config.get("required", False)
+
+                if is_required:
                     issues.append(
                         {
                             "field_type": ValidationIssueTypes.SECTION,
@@ -55,19 +58,26 @@ class SectionValidator:
                     )
             return issues
 
-        # Get all sections from content tree
-        all_sections = (
-            content.get_all_sections() if hasattr(content, "get_all_sections") else []
-        )
-        section_map = {s.id: s for s in all_sections}
+        # Get all sections from content tree or dict
+        if hasattr(content, "get_all_sections"):
+            # ContentTree object
+            all_sections = content.get_all_sections()
+            section_map = {s.id: s for s in all_sections}
+        elif isinstance(content, dict) and "children" in content:
+            # SectionData dict - extract sections recursively
+            section_map = self._extract_sections_from_dict(content)
+        else:
+            section_map = {}
 
         # Check required sections
         for section_id, section_schema in schema.items():
-            validation_config = section_schema.get(SchemaFieldNames.VALIDATION, {})
-            if (
-                validation_config.get("required", False)
-                and section_id not in section_map
-            ):
+            # Check 'required' field at both section level and in validation config
+            is_required = section_schema.get("required", False)
+            if not is_required:
+                validation_config = section_schema.get("validation", {})
+                is_required = validation_config.get("required", False)
+
+            if is_required and section_id not in section_map:
                 issues.append(
                     {
                         "field_type": ValidationIssueTypes.SECTION,
@@ -88,13 +98,42 @@ class SectionValidator:
 
         return issues
 
+    def _extract_sections_from_dict(
+        self, content_dict: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Extract all sections from SectionData dict recursively.
+
+        Args:
+            content_dict: Root SectionData dict
+
+        Returns:
+            Dictionary mapping section IDs to section data
+        """
+        sections = {}
+
+        def extract_recursive(section_data: dict[str, Any]) -> None:
+            """Recursively extract sections."""
+            if "id" in section_data and section_data["id"]:
+                sections[section_data["id"]] = section_data
+
+            # Process children
+            children = section_data.get("children", [])
+            if children:
+                for child in children:
+                    extract_recursive(child)
+
+        # Extract from root and all children
+        extract_recursive(content_dict)
+
+        return sections
+
     def _validate_section(
-        self, section: Section, schema: SectionSchema, path: str
+        self, section: Section | dict[str, Any], schema: SectionSchema, path: str
     ) -> list[ValidationIssue]:
         """Validate individual section.
 
         Args:
-            section: Section to validate
+            section: Section to validate (Section object or dict)
             schema: Section schema definition
             path: Section path for error reporting
 
@@ -104,13 +143,19 @@ class SectionValidator:
         issues: list[ValidationIssue] = []
         validation_config = schema.get(SchemaFieldNames.VALIDATION, {})
 
+        # Get blocks from section (handle both object and dict)
+        if isinstance(section, dict):
+            blocks = section.get("blocks", []) or []
+        else:
+            blocks = section.blocks
+
         # Validate block count
         if (
             "min_blocks" in validation_config
-            and len(section.blocks) < validation_config["min_blocks"]
+            and len(blocks) < validation_config["min_blocks"]
         ):
             min_blocks = validation_config["min_blocks"]
-            block_count = len(section.blocks)
+            block_count = len(blocks)
             issues.append(
                 {
                     "field_type": ValidationIssueTypes.SECTION,
@@ -125,10 +170,10 @@ class SectionValidator:
 
         if (
             "max_blocks" in validation_config
-            and len(section.blocks) > validation_config["max_blocks"]
+            and len(blocks) > validation_config["max_blocks"]
         ):
             max_blocks = validation_config["max_blocks"]
-            block_count = len(section.blocks)
+            block_count = len(blocks)
             issues.append(
                 {
                     "field_type": ValidationIssueTypes.SECTION,
@@ -163,8 +208,14 @@ class SectionValidator:
                             except KeyError:
                                 pass
 
-            for block in section.blocks:
-                if block.type not in allowed_types:
+            for block in blocks:
+                # Handle both Block objects and block dicts
+                block_type = (
+                    block.type
+                    if hasattr(block, "type")
+                    else BlockType(block.get("type", ""))
+                )
+                if block_type not in allowed_types:
                     issues.append(
                         {
                             "field_type": ValidationIssueTypes.SECTION,

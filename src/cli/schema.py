@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from mddata.models.schemas import (
+from mddata.models.schema import (
     CURRENT_SCHEMA_VERSION,
     SchemaFieldNames,
 )
@@ -263,7 +263,7 @@ def validate_command(
         schema_data = _load_schema_file(schema_file)
 
         # Import here to avoid circular dependency
-        from mddata.models.schemas import ValidationLevel
+        from mddata.models.schema import ValidationLevel
         from mddata.schema import SchemaValidator
 
         # Parse validation level if provided

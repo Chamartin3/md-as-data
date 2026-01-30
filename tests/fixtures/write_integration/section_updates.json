@@ -1,0 +1,19 @@
+{
+  "sections": [
+    {
+      "id": "introduction.overview",
+      "content": "## Overview\n\nThis is an updated overview section.",
+      "policy": "replace"
+    },
+    {
+      "id": "implementation.architecture.components.backend.api_layer",
+      "content": "##### API Layer\n\nUpdated API design with new endpoints:\n\n- GET /api/v1/users\n- POST /api/v1/users\n- PUT /api/v1/users/:id",
+      "policy": "replace"
+    },
+    {
+      "id": "implementation.new_section",
+      "content": "## New Section\n\nThis is a newly added section under implementation.",
+      "policy": "update"
+    }
+  ]
+}
