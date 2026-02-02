@@ -11,7 +11,7 @@ from typing import Any, TypeAlias, TypedDict
 
 from .base import FrontmatterProperties, FrontmatterValue, UpdatePolicy
 from .document import Section, SectionData
-from .template import ParameterDefinition
+from .forms import MarkdownFormField
 
 # =============================================================================
 # Input Data Type Definitions
@@ -390,7 +390,7 @@ class MarkdownDataUpdate:
 
     # Update-specific metadata
     frontmatter_policy: UpdatePolicy = UpdatePolicy.MERGE
-    parameters: dict[str, ParameterDefinition] = field(default_factory=dict)
+    parameters: dict[str, MarkdownFormField] = field(default_factory=dict)
 
     # Backward compatibility: flat section list (legacy format)
     sections: list[SectionUpdate] = field(default_factory=list)
@@ -423,7 +423,11 @@ class MarkdownDataUpdate:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MarkdownDataUpdate":
-        """Create from dictionary (JSON/YAML deserialization)."""
+        """Create from dictionary (JSON/YAML deserialization).
+
+        Automatically detects if dict has parameters and returns
+        MarkdownForm if so, otherwise returns MarkdownDataUpdate.
+        """
         # Parse policy
         policy_value = data.get("frontmatter_policy", "merge")
         if isinstance(policy_value, str):
@@ -438,17 +442,37 @@ class MarkdownDataUpdate:
             for section in sections_data
         ]
 
-        return cls(
+        # Auto-wrap content if it only has children (template convenience)
+        content = data.get("content")
+        if content and isinstance(content, dict):
+            # Check if content is missing required root fields but has children
+            if "children" in content and "id" not in content:
+                # Auto-wrap children in a root section structure
+                content = {
+                    "id": "root",
+                    "title": "",
+                    "level": 0,
+                    "path": "",
+                    "blocks": None,
+                    "children": content["children"],
+                }
+
+        # Auto-detect if this should be a MarkdownForm
+        # If dict has parameters and cls is base class, return MarkdownForm
+        has_params = bool(data.get("parameters"))
+        if has_params and cls is MarkdownDataUpdate:
+            # Import here to avoid circular dependency
+            target_cls = MarkdownForm  # type: ignore
+        else:
+            target_cls = cls
+
+        return target_cls(
             frontmatter=data.get("frontmatter", {}),
-            content=data.get("content"),
+            content=content,
             frontmatter_policy=policy,
             parameters=data.get("parameters", {}),
             sections=sections,
         )
-
-    def is_template(self) -> bool:
-        """Check if this update has parameters (is a template)."""
-        return bool(self.parameters)
 
     def has_hierarchical_content(self) -> bool:
         """Check if using new hierarchical content format."""
@@ -624,6 +648,64 @@ class MarkdownDataUpdate:
 
         return result
 
+    def validate(self) -> list[str]:
+        """Validate update structure."""
+        errors: list[str] = []
+        for i, section in enumerate(self.sections):
+            section_errors = section.validate()
+            for error in section_errors:
+                errors.append(f"Section {i} ({section.id}): {error}")
+        return errors
+
+
+@dataclass
+class MarkdownForm(MarkdownDataUpdate):
+    """Parameterized markdown form.
+
+    Forms MUST have parameters - this is enforced in __post_init__.
+    Forms contain placeholders filled with user-provided values.
+
+    Key difference from MarkdownDataUpdate:
+    - MarkdownDataUpdate: Complete data, no parameters
+    - MarkdownForm: Template with parameters, needs filling
+
+    Attributes:
+        parameters: Form field definitions (REQUIRED)
+        (inherits frontmatter, content, sections from base)
+    """
+
+    parameters: dict[str, MarkdownFormField] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Validate that form has parameters."""
+        if not self.parameters:
+            raise ValueError(
+                "MarkdownForm must have parameters.\n"
+                "A form without parameters is just data.\n"
+                "Use MarkdownDataUpdate instead of MarkdownForm."
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary including parameters."""
+        result = super().to_dict()
+        result["parameters"] = dict(self.parameters)
+        return result
+
+    def validate(self) -> list[str]:
+        """Validate form structure and parameters."""
+        errors = super().validate()
+
+        # Validate parameter definitions
+        for param_name, param_def in self.parameters.items():
+            if not param_def.get("type"):
+                errors.append(f"Parameter '{param_name}': missing type")
+
+            # Validate enum definitions
+            if "enum" in param_def and not param_def.get("enum"):
+                errors.append(f"Parameter '{param_name}': enum is empty")
+
+        return errors
+
 
 __all__ = [
     "UpdateInputDict",
@@ -635,4 +717,5 @@ __all__ = [
     "SectionUpdate",
     "BatchOperationResult",
     "MarkdownDataUpdate",
+    "MarkdownForm",
 ]

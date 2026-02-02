@@ -48,8 +48,9 @@ from .document import (
 )
 
 # Level 2: Template parameter types
-from .template import (
-    ParameterDefinition,
+from .forms import (
+    MarkdownFormField,  # New primary name
+    ParameterDefinition,  # Backward compatibility alias
     ParameterValue,
     ResolvedParameters,
 )
@@ -63,6 +64,7 @@ from .update import (
     InputDictSectionData,
     InputDictSectionObject,
     MarkdownDataUpdate,
+    MarkdownForm,
     SectionUpdate,
     UpdateInputDict,
 )
@@ -100,7 +102,8 @@ __all__ = [
     "SectionContentData",
     "SectionBlocksData",
     # Template parameter types
-    "ParameterDefinition",
+    "MarkdownFormField",
+    "ParameterDefinition",  # Deprecated
     "ParameterValue",
     "ResolvedParameters",
     # Update operation types
@@ -112,6 +115,7 @@ __all__ = [
     "SectionUpdate",
     "BatchOperationResult",
     "MarkdownDataUpdate",
+    "MarkdownForm",
     # Data interchange contracts
     "MarkdownDataDict",
 ]
