@@ -6,6 +6,7 @@ description: Efficiently inspect and query markdown document structure using mdd
   hierarchies, or find where information exists in markdown files without reading
   entire documents into context. Ideal for navigating large documents, batch document
   analysis, and targeted information extraction.
+version: 1.1.0
 keywords:
   - markdown inspection
   - document structure
@@ -23,6 +24,9 @@ keywords:
   - batch analysis
   - structural patterns
   - metadata extraction
+  - parameter validation
+  - template inspection
+  - schema validation
 allowed_tools:
   - "mddata info (summary, sections, properties, blocks)"
   - "mddata schema (infer, info, validate)"
@@ -198,6 +202,63 @@ Response:
 
 
 ```
+
+#### Inspecting Parameter Validation in Schemas
+
+Templates and schemas may include parameter validation rules. Use inspection commands to discover validation constraints without loading full content:
+
+**Commands:**
+```bash
+# View schema with parameter validation
+mddata schema info template-schema.yaml
+
+# Infer schema from template (preserves parameter definitions)
+mddata schema infer template.yaml --format yaml --output schema.yaml
+
+# Extract template parameters
+mddata extract yaml template.yaml
+```
+
+**Validation rules revealed by schema inspection:**
+
+- **Enum constraints**: Allowed values with descriptions (`enum`, `enum_descriptions`, `enum_strict`)
+- **Array constraints**: Length limits and uniqueness (`min_items`, `max_items`, `unique_items`)
+- **Item validation**: Per-item enums and patterns (`item_enum`, `item_pattern`, `item_enum_strict`)
+- **Pattern validation**: Regex patterns for string validation
+- **Required parameters**: Which parameters must be provided
+- **Default values**: Computed defaults (`{date}`, `{env.USER}`)
+
+**Example:**
+
+```
+User: "What validation rules are in this pull request template?"
+
+Response:
+1. Run schema info pr-template-schema.yaml
+2. Identify parameter constraints:
+   - "pr_type" parameter: enum [feature, bugfix, refactor] (strict) with descriptions
+   - "priority" parameter: enum [1, 2, 3] with priority level descriptions
+   - "labels" parameter: array with min_items=1, max_items=5, unique_items=true
+   - "labels" items: enum [backend, frontend, api] (non-strict) + pattern ^[a-z-]+$
+   - "reviewers" parameter: array with min_items=1, max_items=3, item_pattern for usernames
+3. Report validation requirements:
+   - Required: pr_type, priority, labels (1-5 unique)
+   - Optional: reviewers (1-3 if provided)
+   - Custom labels allowed if matching pattern
+
+
+```
+
+**When inspecting templates:**
+
+- Templates use `MarkdownDataUpdate` format with `parameters` section
+- Use `extract yaml` to see full parameter definitions including validation
+- Use `schema info` on inferred schema to see structured validation rules
+- Check `enum_descriptions` and `item_enum_descriptions` for parameter documentation
+- Non-strict enums (`enum_strict: false`) allow extensibility with warnings
+
+For complete parameter validation reference, see **markdown-writer** skill or **[TEMPLATES.md](../../../docs/TEMPLATES.md)**.
+
 ### 4. Targeted Extraction
 
 **Goal**: Extract only specific information, not entire document.
