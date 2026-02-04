@@ -163,7 +163,7 @@ class MarkdownPrinter:
         """Print data as JSON output."""
         import json
 
-        json_str = json.dumps(data, indent=2)
+        json_str = json.dumps(data, indent=2, default=str)
 
         if pretty:
             syntax = Syntax(json_str, "json", theme="monokai")

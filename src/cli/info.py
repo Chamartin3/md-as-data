@@ -140,30 +140,12 @@ def tasks(
         console.print(f"[yellow]No task lists found{section_msg}[/yellow]")
         return
 
-    # Apply filters and collect tasks
+    # Apply filters and collect tasks (including subtasks)
     all_tasks = []
     for task_list in task_lists:
-        for task in task_list.tasks:
-            # Apply symbol filter
-            if symbol and task["symbol"] != symbol:
-                continue
-
-            # Apply completion filter
-            is_completed = task["symbol"].lower() == "x"
-            if completed is not None and is_completed != completed:
-                continue
-
-            if pending and is_completed:
-                continue
-
-            all_tasks.append(
-                {
-                    "content": task["content"],
-                    "symbol": task["symbol"],
-                    "completed": is_completed,
-                    "uid": task.get("uid", ""),
-                }
-            )
+        _collect_tasks_hierarchical(
+            task_list.tasks, "", symbol, completed, pending, all_tasks
+        )
 
     if not all_tasks:
         console.print("[yellow]No tasks match the specified filters[/yellow]")
@@ -186,11 +168,12 @@ def tasks(
 
 
 def _display_tasks_compact(tasks: list[dict], console) -> None:
-    """Display tasks in compact format."""
+    """Display tasks in compact format with hierarchical indentation."""
     for task in tasks:
         symbol = task["symbol"]
         content = task["content"]
         uid = task.get("uid", "")
+        level = task.get("level", 0)
 
         # Style based on symbol
         if symbol.lower() == "x":
@@ -206,17 +189,19 @@ def _display_tasks_compact(tasks: list[dict], console) -> None:
             symbol_display = f"[cyan][{symbol}][/cyan]"
             content_style = None
 
+        # Add indentation for subtasks
+        indent = "  " * level
         uid_display = f"[blue]{uid}[/blue]" if uid else ""
 
         if content_style:
             content_fmt = f"[{content_style}]{content}[/{content_style}]"
-            console.print(f"{symbol_display} {uid_display} {content_fmt}")
+            console.print(f"{indent}{symbol_display} {uid_display} {content_fmt}")
         else:
-            console.print(f"{symbol_display} {uid_display} {content}")
+            console.print(f"{indent}{symbol_display} {uid_display} {content}")
 
 
 def _display_tasks_verbose(tasks: list[dict], console) -> None:
-    """Display tasks in detailed table format."""
+    """Display tasks in detailed table format with hierarchical indentation."""
     table = Table(title="Task List")
     table.add_column("UID", style="blue")
     table.add_column("Status", style="cyan")
@@ -227,6 +212,7 @@ def _display_tasks_verbose(tasks: list[dict], console) -> None:
         symbol = task["symbol"]
         content = task["content"]
         uid = task.get("uid", "")
+        level = task.get("level", 0)
 
         if symbol.lower() == "x":
             status = "[green]Completed[/green]"
@@ -237,6 +223,60 @@ def _display_tasks_verbose(tasks: list[dict], console) -> None:
         else:
             status = "[cyan]Custom[/cyan]"
 
-        table.add_row(uid, status, f"[{symbol}]", content)
+        # Add indentation for subtasks
+        indent = "  " * level
+        indented_content = f"{indent}{content}" if level > 0 else content
+
+        table.add_row(uid, status, f"[{symbol}]", indented_content)
 
     console.print(table)
+
+
+def _collect_tasks_hierarchical(
+    tasks: list[dict],
+    parent_uid: str,
+    symbol_filter: str | None,
+    completed_filter: bool | None,
+    pending_filter: bool | None,
+    result: list[dict],
+    level: int = 0,
+) -> None:
+    """Recursively collect tasks with hierarchical UIDs."""
+    for task in tasks:
+        # Apply symbol filter
+        if symbol_filter and task["symbol"] != symbol_filter:
+            continue
+
+        # Apply completion filter
+        is_completed = task["symbol"].lower() == "x"
+        if completed_filter is not None and is_completed != completed_filter:
+            continue
+
+        if pending_filter and is_completed:
+            continue
+
+        # Build hierarchical UID
+        task_uid = task.get("uid", "")
+        hierarchical_uid = f"{parent_uid}.{task_uid}" if parent_uid else task_uid
+
+        result.append(
+            {
+                "content": task["content"],
+                "symbol": task["symbol"],
+                "completed": is_completed,
+                "uid": hierarchical_uid,
+                "level": level,  # Indentation level for display
+            }
+        )
+
+        # Recursively collect subtasks
+        if "subtasks" in task:
+            _collect_tasks_hierarchical(
+                task["subtasks"],
+                hierarchical_uid,
+                symbol_filter,
+                completed_filter,
+                pending_filter,
+                result,
+                level + 1,
+            )

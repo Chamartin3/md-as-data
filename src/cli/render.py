@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Annotated, cast
 
 import typer
+from rich.markdown import Markdown
 
 from mddata import MarkdownFile
-from mddata.models import MarkdownDataDict, MarkdownDataUpdate
+from mddata.models import MarkdownDataDict, MarkdownDataUpdate, MarkdownForm
 from mddata.models.schema import DocumentSchema
 from mddata.schema import SchemaValidationError, load_schema, validate_schema_structure
 from mddata.utils import (
@@ -79,7 +80,7 @@ def generate_markdown_file(
             errors = "\n".join(result["errors"])
             raise CLIError(f"Failed to apply template changes:\n{errors}")
 
-        source_msg = "template" if not update.is_template() else "parametrized template"
+        source_msg = "data" if not isinstance(update, MarkdownForm) else "form"
         return md_file, source_msg
 
     # Generate from schema template
@@ -324,10 +325,11 @@ def render_command(
     md_file, source_msg = generate_markdown_file(
         json_data, update_data, loaded_schema, output, force
     )
-    # If no output path, print to stdout
+    # If no output path, print to stdout using Rich markdown formatter
     if not output:
         markdown_content = md_file.to_markdown()
-        print(markdown_content)
+        rendered_markdown = Markdown(markdown_content)
+        printer.console.print(rendered_markdown)
         return
     try:
         from_schema = bool(schema and not data)

@@ -106,7 +106,7 @@ def extract_frontmatter(
     else:
         import json
 
-        content = json.dumps(frontmatter, indent=2)
+        content = json.dumps(frontmatter, indent=2, default=str)
 
     if output:
         with open(output, "w") as f:

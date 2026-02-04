@@ -4,385 +4,695 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from rich.console import Console
 
-from mddata.models.schema import DocumentSchema
-from mddata.operations import (
-    DataStructureError,
-    OperationMode,
-    OperationResult,
-    ParameterValidationError,
-    determine_operation_mode,
-    load_and_validate_data,
-    write_document,
-)
-from mddata.schema import SchemaValidationError, load_schema, validate_schema_structure
+from mddata import MarkdownFile
+from mddata.models import MarkdownDataDict
+from mddata.operations import OperationMode, write_document
+from mddata.utils.data_loader import load_data, load_data_update
 
-from .utils import (
-    CLIError,
-    MarkdownPrinter,
-    OptionalOutputFileArg,
-    cli_context,
-    handle_cli_errors,
-)
+VALID_POLICIES = {"merge", "replace", "update", "append"}
 
 
-def load_parameters_from_file(params_file: Path | None) -> dict[str, Any]:
-    """Load parameters from JSON/YAML file.
+# OperationMode imported from mddata.operations
+
+
+def detect_operation_mode(
+    target_file: Path | None,
+    output: Path | None,
+    data: Path | None,
+    form: Path | None,
+    schema: Path | None,
+) -> OperationMode:
+    """Detect operation mode based on provided arguments.
 
     Args:
-        params_file: Path to parameter file or None
+        target_file: Target file argument
+        output: Output file path
+        data: Data file path
+        form: Form file path
+        schema: Schema file path
 
     Returns:
-        Dict of parameter key-value pairs with their original types
-
-    Raises:
-        CLIError: On parameter file loading errors
+        Detected operation mode
     """
-    if not params_file:
-        return {}
+    # SCHEMA_TEMPLATE mode: only schema provided
+    if schema and not data and not form:
+        return OperationMode.SCHEMA_TEMPLATE
 
-    try:
-        # Load as raw dict preserving original data types
-        import json
+    # CREATE mode: output specified
+    if output:
+        return OperationMode.CREATE
 
-        import yaml
+    # MODIFY mode: target file exists
+    if target_file and target_file.exists():
+        return OperationMode.MODIFY
 
-        with open(params_file) as f:
-            if params_file.suffix.lower() in (".yaml", ".yml"):
-                data = yaml.safe_load(f)
-            else:
-                data = json.load(f)
-
-        if not isinstance(data, dict):
-            raise CLIError("Parameter file must contain a dictionary")
-
-        # Return with original types preserved (arrays, strings, numbers, etc.)
-        return data
-    except Exception as e:
-        raise CLIError(f"Error loading parameters file: {e}")
+    # STDOUT mode: no output or target
+    return OperationMode.STDOUT
 
 
-def load_schema_safely(schema_path: str | None) -> DocumentSchema | None:
-    """Load and validate schema from file.
-
-    Args:
-        schema_path: Path to schema file or None
-
-    Returns:
-        Loaded schema dict or None
-
-    Raises:
-        CLIError: On schema loading/validation errors
-    """
-    if not schema_path:
-        return None
-
-    try:
-        schema = load_schema(schema_path)
-        validate_schema_structure(schema)
-        return schema
-    except SchemaValidationError as e:
-        raise CLIError("Schema validation failed", details=f"\n{str(e)}\n")
-    except Exception as e:
-        raise CLIError(f"Error loading schema: {e}")
+write_app = typer.Typer(help="Write and modify markdown files")
 
 
-@handle_cli_errors
-def write_command(
+@write_app.command("from")
+def write_from(
     target_file: Annotated[
         Path | None,
-        typer.Argument(
-            help=(
-                "Target file to modify (for modify mode) "
-                "or positional argument for data file"
-            )
-        ),
+        typer.Argument(help="Target file to modify (optional)"),
     ] = None,
+    # Source flags
     data: Annotated[
-        str | None,
-        typer.Option(
-            "--data", "-d", help="Path to data/template file (use '-' for stdin)"
-        ),
+        Path | None,
+        typer.Option("-d", "--data", help="Data file (JSON/YAML) or '-' for stdin"),
+    ] = None,
+    form: Annotated[
+        Path | None,
+        typer.Option("-f", "--form", help="Form/template file (YAML) or '-' for stdin"),
     ] = None,
     schema: Annotated[
-        str | None,
-        typer.Option(
-            "--schema",
-            "-s",
-            help="Path to schema file for validation/template generation",
-        ),
+        Path | None,
+        typer.Option("-s", "--schema", help="Schema file (JSON/YAML)"),
     ] = None,
-    output: OptionalOutputFileArg = None,
-    format: Annotated[
-        str,
-        typer.Option(
-            "--format", "-f", help="Data format: json or yaml (default: auto-detect)"
-        ),
-    ] = "json",
+    # Parameters
     param: Annotated[
         list[str],
-        typer.Option(
-            "-p",
-            "--param",
-            help="Template parameter (KEY=VALUE format)",
-        ),
+        typer.Option("-p", "--param", help="Parameter (KEY=VALUE or KEY=@file)"),
     ] = [],
     params_file: Annotated[
         Path | None,
-        typer.Option("--params", help="Load parameters from JSON/YAML file"),
+        typer.Option("--params", help="Parameter file (JSON/YAML)"),
+    ] = None,
+    # Output
+    output: Annotated[
+        Path | None,
+        typer.Option("-o", "--output", help="Output file path"),
     ] = None,
     policy: Annotated[
         str,
-        typer.Option(
-            "--policy",
-            help="Merge policy: replace, update, merge, append (default: update)",
-        ),
-    ] = "update",
+        typer.Option(help="Update policy: merge, replace, update, append"),
+    ] = "merge",
     force: Annotated[
-        bool, typer.Option("--force", "-F", help="Force overwrite existing files")
+        bool,
+        typer.Option("--force", "-F", help="Overwrite existing files"),
     ] = False,
     dry_run: Annotated[
-        bool, typer.Option("--dry-run", "-n", help="Preview changes without applying")
-    ] = False,
-    debug: Annotated[
         bool,
-        typer.Option(
-            "--debug", help="Show detailed error information and stack traces"
-        ),
+        typer.Option("--dry-run", "-n", help="Preview without applying"),
     ] = False,
 ) -> None:
-    """Write markdown files from data, templates, or schemas.
-
-    Intelligent auto-detection of operation mode:
-    - CREATE: Generate new file from data/template/schema
-    - MODIFY: Update existing file (when target file exists)
-    - SCHEMA_TEMPLATE: Generate template from schema only
-    - STDOUT: Render to stdout (no output file specified)
+    """Write markdown from various sources with intelligent resolution.
 
     Examples:
+        # From data
+        mddata write from -d document.json -o output.md
 
-        # Create from data
-        mddata write --data document.json --output new.md
+        # From form with parameters
+        mddata write from -f form.yaml -p title="Hello" -o post.md
+
+        # Form + Data + Schema validation
+        mddata write from -f form.yaml -d values.json -s schema.json -o out.md
 
         # Modify existing file
-        mddata write --data changes.json existing.md
+        mddata write from -d changes.json existing.md
 
-        # Generate template from schema
-        mddata write --schema schema.json --output template.md
-
-        # Render to stdout
-        mddata write --data document.json
-
-        # With template parameters
-        mddata write --data template.yaml -p title="My Doc" --output result.md
-
-        # Dry run to preview
-        mddata write --data changes.json existing.md --dry-run
+        # Stdin/stdout
+        cat data.json | mddata write from -d - -o output.md
     """
-    import logging
+    from rich.console import Console
 
-    printer = MarkdownPrinter(cli_context.console)
+    console = Console()
 
-    # Configure logging based on debug flag
-    if debug:
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(levelname)s [%(name)s]: %(message)s"
-        )
-        printer.console.print("[yellow]Debug mode enabled[/yellow]")
-    else:
-        logging.basicConfig(level=logging.WARNING)
-
-    # Parse parameters
-    parameters = {}
-    for param_str in param:
-        if "=" not in param_str:
-            raise CLIError(f"Invalid parameter format: {param_str} (use KEY=VALUE)")
-        key, value = param_str.split("=", 1)
-        parameters[key] = value
-
-    # Load additional parameters from file if specified
-    file_params = load_parameters_from_file(params_file)
-    parameters.update(file_params)
-
-    # Show parameter info in debug mode
-    if debug and parameters:
-        printer.console.print(
-            f"[dim]Loaded parameters: {list(parameters.keys())}[/dim]"
+    # Validate policy
+    if policy not in VALID_POLICIES:
+        valid_policies_str = ", ".join(sorted(VALID_POLICIES))
+        raise typer.BadParameter(
+            f"Invalid policy '{policy}'. Must be one of: {valid_policies_str}"
         )
 
-    # Determine operation mode
-    operation_mode = determine_operation_mode(data, schema, target_file, output)
+    # Validate input sources - at least one source must be provided
+    if not any([data, form, schema]):
+        raise typer.BadParameter(
+            "At least one source must be provided: --data, --form, or --schema"
+        )
 
-    if debug:
-        printer.console.print(f"[dim]Operation mode: {operation_mode.value}[/dim]")
+    # Load and resolve data based on provided sources
+    resolved_data = None
 
-    # Auto-detect format from file extension if using default
-    if format == "json" and data and data != "-":
-        if data.endswith(('.yaml', '.yml')):
-            format = "yaml"
-            if debug:
-                printer.console.print("[dim]Auto-detected format: yaml[/dim]")
-
-    # Load data
     try:
-        # Pass parameters for template processing
-        params_file_str = str(params_file) if params_file else None
-        data_dict, data_update = load_and_validate_data(
-            data,
-            format,
-            cli_params=param,
-            params_file=params_file_str,
+        # Case 1: Form provided - fill form with parameters from data/CLI/params_file
+        if form:
+            from mddata.templates.filler import MarkdownFormFiller
+
+            # Load form
+            form_source = str(form) if form != Path("-") else "-"
+            form_data = load_data_update(source=form_source)
+
+            # Load parameter data if provided
+            params_dict = None
+            if data:
+                data_source = str(data) if data != Path("-") else "-"
+                params_dict = load_data(data_source)
+
+            # Fill form with parameters
+            filler = MarkdownFormFiller(form_data)
+            resolved_data = filler.fill(
+                cli_params=param if param else None,
+                params_file=str(params_file) if params_file else None,
+                params_dict=params_dict,
+            )
+
+        # Case 2: Data only (no form) - load data directly
+        elif data:
+            data_source = str(data) if data != Path("-") else "-"
+            resolved_data = load_data_update(
+                source=data_source,
+                cli_params=param if param else None,
+                params_file=str(params_file) if params_file else None,
+            )
+
+        # Case 3: Schema only - handled differently in template mode
+        elif schema:
+            schema_data = load_data(str(schema))
+            resolved_data = schema_data
+
+    except Exception as e:
+        console.print(f"[red]Error loading/resolving data:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Detect operation mode
+    mode = detect_operation_mode(
+        target_file=target_file,
+        output=output,
+        data=data,
+        form=form,
+        schema=schema,
+    )
+
+    # Execute based on mode
+    try:
+        if mode == OperationMode.CREATE:
+            if not resolved_data:
+                raise typer.BadParameter("Data source required for CREATE mode")
+            handle_create_mode(
+                output=output,
+                data=resolved_data.to_dict()
+                if hasattr(resolved_data, "to_dict")
+                else resolved_data,
+                force=force,
+                dry_run=dry_run,
+            )
+
+        elif mode == OperationMode.MODIFY:
+            if not target_file:
+                raise typer.BadParameter("Target file required for MODIFY mode")
+            if not resolved_data:
+                raise typer.BadParameter("Data source required for MODIFY mode")
+            handle_modify_mode(
+                target_file=target_file,
+                data=resolved_data.to_dict()
+                if hasattr(resolved_data, "to_dict")
+                else resolved_data,
+                policy=policy,
+                dry_run=dry_run,
+            )
+
+        elif mode == OperationMode.STDOUT:
+            if not resolved_data:
+                raise typer.BadParameter("Data source required for STDOUT mode")
+            handle_stdout_mode(
+                data=resolved_data.to_dict()
+                if hasattr(resolved_data, "to_dict")
+                else resolved_data,
+            )
+
+        elif mode == OperationMode.SCHEMA_TEMPLATE:
+            if not schema:
+                raise typer.BadParameter("Schema required for TEMPLATE mode")
+            handle_template_mode(
+                schema=resolved_data,
+                output=output,
+                force=force,
+            )
+
+    except (FileExistsError, FileNotFoundError, RuntimeError) as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
+@write_app.command("set-property")
+def set_property(
+    file: Annotated[Path, typer.Argument(help="Markdown file to modify")],
+    property_name: Annotated[str, typer.Argument(help="Property name")],
+    value: Annotated[str, typer.Argument(help="Property value")],
+    json_value: Annotated[
+        bool, typer.Option("--json", help="Parse value as JSON")
+    ] = False,
+) -> None:
+    """Set frontmatter property.
+
+    Examples:
+        # Set string property
+        mddata write set-property document.md title "New Title"
+
+        # Set JSON property
+        mddata write set-property document.md tags '["tag1", "tag2"]' --json
+    """
+    import json as json_lib
+
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        # Validate file exists
+        if not file.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+        # Parse value if JSON
+        if json_value:
+            try:
+                parsed_value = json_lib.loads(value)
+            except json_lib.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON value: {e}")
+        else:
+            parsed_value = value
+
+        # Load file
+        doc = MarkdownFile(file)
+
+        # Set property
+        doc.mddata.frontmatter[property_name] = parsed_value
+
+        # Save file
+        doc.save()
+
+        # Display result
+        console.print(
+            f"[green]Set property:[/green] {property_name} = {parsed_value!r}"
+        )
+        console.print(f"[green]Saved:[/green] {file}")
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+
+@write_app.command("remove-property")
+def remove_property(
+    file: Annotated[Path, typer.Argument(help="Markdown file to modify")],
+    property_name: Annotated[str, typer.Argument(help="Property name to remove")],
+) -> None:
+    """Remove frontmatter property.
+
+    Examples:
+        # Remove a property
+        mddata write remove-property document.md draft
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        # Validate file exists
+        if not file.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+        # Load file
+        doc = MarkdownFile(file)
+
+        # Remove property if it exists
+        if property_name in doc.mddata.frontmatter:
+            del doc.mddata.frontmatter[property_name]
+            doc.save()
+            console.print(f"[green]Removed property:[/green] {property_name}")
+            console.print(f"[green]Saved:[/green] {file}")
+        else:
+            console.print(f"[yellow]Property not found:[/yellow] {property_name}")
+            console.print(f"[yellow]No changes made to:[/yellow] {file}")
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+
+@write_app.command("set-section")
+def set_section(
+    file: Annotated[Path, typer.Argument(help="Markdown file to modify")],
+    section_id: Annotated[str, typer.Argument(help="Section ID or path")],
+    content: Annotated[str, typer.Argument(help="Section content")],
+    policy: Annotated[str, typer.Option("--policy", help="Update policy")] = "update",
+) -> None:
+    """Set section content with policy-based updates.
+
+    Examples:
+        # Update section (merge content)
+        mddata write set-section document.md intro "New content"
+
+        # Replace section entirely
+        mddata write set-section document.md intro "Replace all" --policy replace
+
+        # Append to section
+        mddata write set-section document.md notes "More notes" --policy append
+
+        # Create nested section
+        mddata write set-section document.md introduction.overview "Overview text"
+    """
+    from rich.console import Console
+
+    from mddata.models import UpdatePolicy
+
+    console = Console()
+
+    try:
+        # Validate file exists
+        if not file.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+        # Validate policy
+        valid_policies = ["update", "replace", "append"]
+        if policy not in valid_policies:
+            raise ValueError(
+                f"Invalid policy: {policy}\nValid policies: {', '.join(valid_policies)}"
+            )
+
+        # Load file
+        doc = MarkdownFile(file)
+
+        # Convert policy string to enum
+        policy_enum = UpdatePolicy[policy.upper()]
+
+        # Set section using SDK method
+        doc.mddata.set_section(section_id, content, policy=policy_enum)
+
+        # Save file
+        doc.save()
+
+        # Display result
+        console.print(f"[green]Set section:[/green] {section_id} (policy: {policy})")
+        console.print(f"[green]Saved:[/green] {file}")
+
+    except FileNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+
+@write_app.command("task")
+def task(
+    file: Annotated[Path, typer.Argument(help="Markdown file to modify")],
+    action: Annotated[
+        str, typer.Argument(help="Action: complete, pending, add, remove")
+    ],
+    task_ref: Annotated[str, typer.Argument(help="Task reference (UID or index)")],
+    section: Annotated[
+        str | None,
+        typer.Option("--section", "-s", help="Section containing the task list"),
+    ] = None,
+    content: Annotated[
+        str | None,
+        typer.Option(
+            "--content", "-c", help="Content for new task (required for 'add')"
+        ),
+    ] = None,
+    symbol: Annotated[
+        str, typer.Option("--symbol", help="Symbol for new task (default: space)")
+    ] = " ",
+) -> None:
+    """Modify task list items.
+
+    Actions:
+      - complete: Mark task as completed
+      - pending: Mark task as pending
+      - add: Add new task to list
+      - remove: Remove task from list
+
+    Task Reference:
+      - For complete/pending/remove: UID (preferred) or numeric index
+      - For add: Section ID where to add the task
+
+    Examples:
+      # Mark task as completed by UID
+      mddata write task document.md complete A1B2
+
+      # Mark task as completed by index
+      mddata write task document.md complete 0 --section "sprint_planning"
+
+      # Add new task
+      mddata write task document.md add "sprint_planning" --content "New task"
+
+      # Remove task
+      mddata write task document.md remove C3D4
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        # Load file
+        md_file = MarkdownFile(file)
+
+        # For add action, task_ref is the section ID, so get all task lists
+        if action == "add":
+            task_lists = md_file.mddata.get_task_lists(None)
+        else:
+            # For other actions, filter by section if specified
+            task_lists = md_file.mddata.get_task_lists(section)
+
+        if not task_lists:
+            section_msg = f" in section '{section}'" if section else ""
+            console.print(
+                f"[red]Error:[/red] No task lists found{section_msg}", style="bold"
+            )
+            raise typer.Exit(1)
+
+        # For add action, task_ref is the section ID
+        if action == "add":
+            if not content:
+                console.print(
+                    "[red]Error:[/red] Content is required for 'add' action",
+                    style="bold",
+                )
+                raise typer.Exit(1)
+
+            section_id = task_ref  # For add, task_ref is the section ID
+
+            # Find task list in the specified section
+            target_list = None
+            for task_list in task_lists:
+                if task_list.block.section == section_id:
+                    target_list = task_list
+                    break
+
+            if not target_list:
+                console.print(
+                    f"[red]Error:[/red] No task list found in section '{section_id}'",
+                    style="bold",
+                )
+                raise typer.Exit(1)
+
+            # Add the task
+            uid = target_list.add_task(content, symbol)
+            md_file.save()
+            console.print(f"[green]Added task:[/green] '{content}' with UID '{uid}'")
+
+        else:
+            # For other actions, find the task across all lists
+            found = False
+            for task_list in task_lists:
+                try:
+                    if action == "complete":
+                        task_list.mark_completed(task_ref)
+                        found = True
+                    elif action == "pending":
+                        task_list.mark_pending(task_ref)
+                        found = True
+                    elif action == "remove":
+                        task_list.remove_task(task_ref)
+                        found = True
+                    else:
+                        console.print(
+                            f"[red]Error:[/red] Unknown action: {action}", style="bold"
+                        )
+                        raise typer.Exit(1)
+
+                    if found:
+                        md_file.save()
+                        console.print(f"[green]Task {action}d successfully[/green]")
+                        break
+
+                except (ValueError, IndexError):
+                    continue  # Try next task list
+
+            if not found:
+                console.print(
+                    f"[red]Error:[/red] Task '{task_ref}' not found", style="bold"
+                )
+                raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}", style="bold")
+        raise typer.Exit(1)
+
+
+def handle_create_mode(
+    output: Path, data: dict[str, Any], force: bool, dry_run: bool
+) -> None:
+    """Handle CREATE mode - create new file.
+
+    Args:
+        output: Output file path
+        data: Resolved document data
+        force: Force overwrite existing file
+        dry_run: Preview mode without applying
+
+    Raises:
+        FileExistsError: If file exists and force=False
+    """
+    console = Console()
+
+    if output.exists() and not force:
+        raise FileExistsError(
+            f"Output file already exists: {output}\nUse --force to overwrite"
         )
 
-        # Show data validation info in debug mode
-        if debug:
-            if data_dict:
-                printer.console.print(
-                    "[dim]✓ Loaded complete document (MarkdownDataDict)[/dim]"
-                )
-                if "frontmatter" in data_dict:
-                    fm_keys = list(data_dict["frontmatter"].keys())
-                    printer.console.print(f"[dim]  Frontmatter keys: {fm_keys}[/dim]")
-            elif data_update:
-                printer.console.print(
-                    "[dim]✓ Loaded template/update (MarkdownDataUpdate)[/dim]"
-                )
-                if data_update.parameters:
-                    param_count = len(data_update.parameters)
-                    printer.console.print(
-                        f"[dim]  Template parameters: {param_count}[/dim]"
-                    )
-                    required = [
-                        name
-                        for name, config in data_update.parameters.items()
-                        if isinstance(config, dict) and config.get("required", False)
-                    ]
-                    if required:
-                        printer.console.print(
-                            f"[dim]  Required parameters: {required}[/dim]"
-                        )
-            else:
-                printer.console.print("[yellow]Warning: No data loaded[/yellow]")
-    except Exception as e:
-        details = str(e)
-        if debug:
-            import traceback
-
-            details = f"{details}\n\n{traceback.format_exc()}"
-        raise CLIError(f"Error loading data: {e}", details=details if debug else None)
-
-    # Load schema
-    schema_dict = load_schema_safely(schema)
-
-    if debug and schema_dict:
-        printer.console.print("[dim]✓ Loaded schema for validation[/dim]")
-
-    # Prepare arguments for write_document
-    write_args = {
-        "data": data_dict or data_update,
-        "schema": schema_dict,
-        "operation_mode": operation_mode,
-        "parameters": parameters or None,
-        "policy": policy,
-        "force_overwrite": force,
-    }
-
-    # Set file arguments based on mode
-    if operation_mode == OperationMode.MODIFY:
-        write_args["target_file"] = target_file
-    elif operation_mode in (OperationMode.CREATE, OperationMode.SCHEMA_TEMPLATE):
-        if not output:
-            raise CLIError("Output file required for create/schema_template modes")
-        write_args["output_file"] = Path(output)
-    # STDOUT mode doesn't need file arguments
-
-    # Dry run mode
     if dry_run:
-        _print_dry_run(operation_mode, write_args, printer)
+        console.print(f"[yellow]Would create:[/yellow] {output}")
+        console.print(data)
         return
 
-    # Execute operation
-    try:
-        result = write_document(**write_args)
-    except ParameterValidationError as e:
-        details = str(e)
-        if debug:
-            import traceback
+    # Use operations module to create the file
 
-            details = f"{details}\n\n{traceback.format_exc()}"
-        raise CLIError("Parameter validation failed", details=details)
-    except DataStructureError as e:
-        details = str(e)
-        if debug:
-            import traceback
+    # Convert dict to MarkdownDataDict
+    markdown_data = MarkdownDataDict(**data)
 
-            details = f"{details}\n\n{traceback.format_exc()}"
-        raise CLIError("Data structure error", details=details)
-    except Exception as e:
-        details = str(e)
-        if debug:
-            import traceback
+    result = write_document(
+        data=markdown_data,
+        output_file=output,
+        operation_mode=OperationMode.CREATE,
+        force_overwrite=force,
+    )
 
-            details = (
-                f"{details}\n\n[bold]Full traceback:[/bold]\n{traceback.format_exc()}"
-            )
-        raise CLIError(f"Write operation failed: {e}", details=details)
-
-    # Handle result
     if not result.success:
         error_msg = "; ".join(result.errors or ["Unknown error"])
-        details = None
-        if debug and result.errors:
-            details = "\n".join(result.errors)
-        raise CLIError(f"Operation failed: {error_msg}", details=details)
+        if "already exists" in error_msg:
+            raise FileExistsError(error_msg)
+        raise RuntimeError(f"Failed to create file: {error_msg}")
 
-    # Report success
-    _handle_success(result, operation_mode, printer)
+    console.print(f"[green]Created:[/green] {output}")
 
 
-def _print_dry_run(
-    operation_mode: OperationMode, args: dict, printer: MarkdownPrinter
+def handle_modify_mode(
+    target_file: Path, data: dict[str, Any], policy: str, dry_run: bool
 ) -> None:
-    """Print dry run information."""
-    printer.console.print("[bold blue]Dry Run Mode[/bold blue]")
-    printer.console.print(f"Operation: {operation_mode.value}")
+    """Handle MODIFY mode - modify existing file.
 
-    if operation_mode == OperationMode.MODIFY:
-        printer.console.print(f"Target file: {args.get('target_file')}")
-    elif operation_mode in (OperationMode.CREATE, OperationMode.SCHEMA_TEMPLATE):
-        printer.console.print(f"Output file: {args.get('output_file')}")
+    Args:
+        target_file: File to modify
+        data: Update data
+        policy: Update policy (merge/replace/append)
+        dry_run: Preview mode without applying
 
-    if args.get("data"):
-        printer.console.print(f"Data source: {args['data']}")
-    if args.get("schema"):
-        printer.console.print(f"Schema: {args['schema']}")
-    if args.get("parameters"):
-        printer.console.print(f"Parameters: {args['parameters']}")
+    Raises:
+        FileNotFoundError: If target file doesn't exist
+    """
+    console = Console()
 
-    printer.console.print("\n[yellow]No files will be created or modified[/yellow]")
+    if not target_file.exists():
+        raise FileNotFoundError(f"Target file not found: {target_file}")
+
+    if dry_run:
+        console.print(f"[yellow]Would modify:[/yellow] {target_file}")
+        console.print(f"[yellow]Policy:[/yellow] {policy}")
+        console.print(data)
+        return
+
+    # Use operations module to modify the file
+    from mddata.models import MarkdownDataUpdate
+
+    # Convert dict to MarkdownDataUpdate
+    update_data = MarkdownDataUpdate.from_dict(data)
+
+    result = write_document(
+        data=update_data,
+        target_file=target_file,
+        operation_mode=OperationMode.MODIFY,
+        policy=policy,
+    )
+
+    if not result.success:
+        error_msg = "; ".join(result.errors or ["Unknown error"])
+        raise RuntimeError(f"Failed to modify file: {error_msg}")
+
+    console.print(f"[green]Modified:[/green] {target_file}")
 
 
-def _handle_success(
-    result: OperationResult, mode: OperationMode, printer: MarkdownPrinter
+def handle_stdout_mode(data: dict[str, Any]) -> None:
+    """Handle STDOUT mode - output to console.
+
+    Args:
+        data: Resolved document data
+    """
+    # Use operations module to render to stdout
+    from mddata.models import MarkdownDataDict
+
+    result = write_document(
+        data=MarkdownDataDict(**data),
+        operation_mode=OperationMode.STDOUT,
+    )
+
+    if not result.success:
+        error_msg = "; ".join(result.errors or ["Unknown error"])
+        raise RuntimeError(f"Failed to render to stdout: {error_msg}")
+
+
+def handle_template_mode(
+    schema: dict[str, Any], output: Path | None, force: bool
 ) -> None:
-    """Handle successful operation result."""
-    if mode == OperationMode.STDOUT:
-        # Print rendered content to stdout
-        if result.metadata and "rendered_content" in result.metadata:
-            printer.console.print(result.metadata["rendered_content"])
-        else:
-            printer.print_success("Rendered to stdout")
-    elif mode == OperationMode.MODIFY:
-        target_file = result.metadata.get("target_file") if result.metadata else None
-        printer.print_success(f"Modified file: {target_file}")
-    elif mode == OperationMode.CREATE:
-        output_file = result.metadata.get("output_file") if result.metadata else None
-        printer.print_success(f"Created file: {output_file}")
-    elif mode == OperationMode.SCHEMA_TEMPLATE:
-        output_file = result.metadata.get("output_file") if result.metadata else None
-        printer.print_success(f"Generated template: {output_file}")
+    """Handle TEMPLATE mode - generate template from schema.
 
-    # Print warnings if any
-    if result.warnings:
-        for warning in result.warnings:
-            printer.console.print(f"[yellow]Warning: {warning}[/yellow]")
+    Args:
+        schema: Schema to generate template from
+        output: Output file path (None for stdout)
+        force: Force overwrite existing file
+
+    Raises:
+        FileExistsError: If file exists and force=False
+    """
+    console = Console()
+
+    result = write_document(
+        schema=schema,
+        output_file=output,
+        operation_mode=OperationMode.SCHEMA_TEMPLATE,
+        force_overwrite=force,
+    )
+
+    if not result.success:
+        error_msg = "; ".join(result.errors or ["Unknown error"])
+        if "already exists" in error_msg:
+            raise FileExistsError(error_msg)
+        raise RuntimeError(f"Failed to create template: {error_msg}")
+
+    if output:
+        console.print(f"[green]Created template:[/green] {output}")
+    # For stdout, write_document already printed the result
