@@ -32,7 +32,8 @@ import yaml
 from mddata.errors import ParameterValidationError
 from mddata.models import (
     MarkdownDataUpdate,
-    ParameterDefinition,
+    MarkdownForm,
+    MarkdownFormField,
     ParameterType,
     ParameterValue,
     ResolvedParameters,
@@ -54,7 +55,7 @@ class TemplateDict(TypedDict, total=False):
     frontmatter_policy: str
     content: dict[str, object] | None
     sections: list[dict[str, object]]
-    parameters: dict[str, ParameterDefinition]
+    parameters: dict[str, MarkdownFormField]
 
 
 class ArrayItemConstraints(TypedDict, total=False):
@@ -301,7 +302,7 @@ def _resolve_computed_params(
 # ==================================================================
 
 
-def _parse_param_value(value: str, param_def: ParameterDefinition) -> ParameterValue:
+def _parse_param_value(value: str, param_def: MarkdownFormField) -> ParameterValue:
     """Parse single parameter value with type coercion."""
     param_type = param_def["type"]
 
@@ -335,54 +336,78 @@ def _parse_param_value(value: str, param_def: ParameterDefinition) -> ParameterV
 def _parse_array_param(
     value: str,
     item_type: ParameterType | None,
-    param_def: ParameterDefinition | None = None,
+    param_def: MarkdownFormField | None = None,
 ) -> list[str]:
     """Parse JSON array parameter with item type validation and constraints.
 
     Returns list[str] to match ParameterValue type definition.
     Mixed-type arrays are converted to strings.
     """
+    # Try parsing as JSON first
     try:
         parsed = json.loads(value)
         if not isinstance(parsed, list):
             raise ValueError(f"Expected JSON array, got {type(parsed)}")
+    except json.JSONDecodeError:
+        # If JSON parsing fails, try comma-separated values (shell-friendly)
+        # Split on commas and strip whitespace
+        items = [item.strip() for item in value.split(",") if item.strip()]
+        if not items:
+            # Empty value - return empty list
+            parsed = []
+        else:
+            parsed = items
 
-        # Validate array constraints if param_def provided
-        if param_def:
-            _validate_array_constraints(parsed, param_def)
-            _validate_array_item_enum(parsed, param_def)
-            _validate_array_item_pattern(parsed, param_def)
+    # Validate array constraints if param_def provided
+    if param_def:
+        _validate_array_constraints(parsed, param_def)
+        _validate_array_item_enum(parsed, param_def)
+        _validate_array_item_pattern(parsed, param_def)
 
-        # Validate item types if specified
-        if item_type:
-            for i, item in enumerate(parsed):
-                if item_type == ParameterType.STR and not isinstance(item, str):
-                    raise ValueError(f"Array item {i} must be string")
-                elif item_type == ParameterType.INT and not isinstance(item, int):
-                    raise ValueError(f"Array item {i} must be integer")
-                elif item_type == ParameterType.FLOAT and not isinstance(
-                    item, (int, float)
-                ):
-                    raise ValueError(f"Array item {i} must be number")
-                elif item_type == ParameterType.BOOL and not isinstance(item, bool):
-                    raise ValueError(f"Array item {i} must be boolean")
+    # Validate item types if specified
+    if item_type:
+        for i, item in enumerate(parsed):
+            if item_type == ParameterType.STR and not isinstance(item, str):
+                raise ValueError(f"Array item {i} must be string")
+            elif item_type == ParameterType.INT and not isinstance(item, int):
+                raise ValueError(f"Array item {i} must be integer")
+            elif item_type == ParameterType.FLOAT and not isinstance(
+                item, (int, float)
+            ):
+                raise ValueError(f"Array item {i} must be number")
+            elif item_type == ParameterType.BOOL and not isinstance(item, bool):
+                raise ValueError(f"Array item {i} must be boolean")
 
-        # Convert all items to strings for type safety
-        # ParameterValue only supports list[str]
-        return [str(item) for item in parsed]
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON array: {e}")
+    # Convert all items to strings for type safety
+    # ParameterValue only supports list[str]
+    return [str(item) for item in parsed]
 
 
 def _validate_param_constraints(
-    value: ParameterValue, param_def: ParameterDefinition
+    param_name: str, value: ParameterValue, param_def: MarkdownFormField
 ) -> None:
-    """Validate parameter against constraints (min, max, pattern, enum)."""
+    """Validate parameter against constraints (min, max, pattern, enum).
+
+    Args:
+        param_name: Name of the parameter being validated
+        value: Parameter value to validate
+        param_def: Parameter definition with constraints
+
+    Raises:
+        ValueError: If validation fails, with parameter name in message
+    """
 
     # Array constraints (check first for arrays)
     if isinstance(value, list):
-        _validate_array_constraints(value, param_def)
-        _validate_array_item_enum(value, param_def)
+        try:
+            _validate_array_constraints(value, param_def)
+            _validate_array_item_enum(value, param_def)
+        except ValueError as e:
+            # Re-raise with parameter name if not already included
+            error_msg = str(e)
+            if "Parameter '" not in error_msg:
+                raise ValueError(f"Parameter '{param_name}': {error_msg}") from e
+            raise
         return  # Skip other constraints for arrays
 
     # NEW: Enum constraint (check first for better error messages)
@@ -394,7 +419,10 @@ def _validate_param_constraints(
         if value not in enum_values:
             # Build helpful message
             allowed_str = ", ".join(str(v) for v in enum_values)
-            msg = f"Value '{value}' not in enum values: [{allowed_str}]"
+            msg = (
+                f"Parameter '{param_name}': value '{value}' "
+                f"not in enum values: [{allowed_str}]"
+            )
 
             if enum_descriptions:
                 msg += "\n\nAvailable options:"
@@ -417,28 +445,41 @@ def _validate_param_constraints(
     min_val = param_def.get("min")
     if min_val is not None:
         if isinstance(value, (int, float)) and value < min_val:
-            raise ValueError(f"Value {value} is less than minimum {min_val}")
+            raise ValueError(
+                f"Parameter '{param_name}': value {value} "
+                f"is less than minimum {min_val}"
+            )
         elif isinstance(value, str) and len(value) < min_val:
-            raise ValueError(f"String length is less than minimum {min_val}")
+            raise ValueError(
+                f"Parameter '{param_name}': string length {len(value)} "
+                f"is less than minimum {min_val} (got: '{value}')"
+            )
 
     # Max constraint
     max_val = param_def.get("max")
     if max_val is not None:
         if isinstance(value, (int, float)) and value > max_val:
-            raise ValueError(f"Value {value} is greater than maximum {max_val}")
+            raise ValueError(
+                f"Parameter '{param_name}': value {value} "
+                f"is greater than maximum {max_val}"
+            )
         elif isinstance(value, str) and len(value) > max_val:
-            raise ValueError(f"String length is greater than maximum {max_val}")
+            raise ValueError(
+                f"Parameter '{param_name}': string length {len(value)} "
+                f"is greater than maximum {max_val}"
+            )
 
     # Pattern constraint
     pattern = param_def.get("pattern")
     if pattern and isinstance(value, str):
         if not re.match(pattern, value):
-            raise ValueError(f"Value does not match pattern '{pattern}'")
+            raise ValueError(
+                f"Parameter '{param_name}': value '{value}' "
+                f"does not match pattern '{pattern}'"
+            )
 
 
-def _validate_array_constraints(
-    value: list[Any], param_def: ParameterDefinition
-) -> None:
+def _validate_array_constraints(value: list[Any], param_def: MarkdownFormField) -> None:
     """Validate array-specific constraints (min_items, max_items, unique_items).
 
     Args:
@@ -466,7 +507,7 @@ def _validate_array_constraints(
         raise ValueError("Array items must be unique")
 
 
-def _validate_array_item_enum(value: list[Any], param_def: ParameterDefinition) -> None:
+def _validate_array_item_enum(value: list[Any], param_def: MarkdownFormField) -> None:
     """Validate array items against enum constraints with pattern fallback.
 
     When item_enum_strict=False and item_pattern is defined, items are accepted
@@ -519,7 +560,7 @@ def _validate_array_item_enum(value: list[Any], param_def: ParameterDefinition) 
 
 
 def _validate_array_item_pattern(
-    value: list[Any], param_def: ParameterDefinition
+    value: list[Any], param_def: MarkdownFormField
 ) -> None:
     """Validate array items against regex pattern.
 
@@ -596,7 +637,7 @@ def _read_param_from_stdin(interactive: bool = False) -> str:
 
 def _parse_cli_params(
     params: list[str],
-    definitions: dict[str, ParameterDefinition],
+    definitions: dict[str, MarkdownFormField],
     computed: ResolvedParameters,
     params_file: str | None = None,
     params_dict: dict[str, Any] | None = None,
@@ -622,6 +663,12 @@ def _parse_cli_params(
     for key, param_def in definitions.items():
         default = param_def.get("default")
         if default is not None and key not in resolved_values:
+            # Resolve env variables in default values (e.g., "env.VAR_NAME")
+            if isinstance(default, str) and default.startswith("env."):
+                import os
+
+                env_var_name = default[4:]  # Remove "env." prefix
+                default = os.getenv(env_var_name, default)
             resolved_values[key] = default
 
     # Load from params file if specified
@@ -636,7 +683,16 @@ def _parse_cli_params(
             if key in definitions:
                 param_def = definitions[key]
                 # Value is already parsed from JSON/YAML, just validate
-                _validate_param_constraints(value, param_def)
+                try:
+                    _validate_param_constraints(key, value, param_def)
+                except ValueError as e:
+                    # Wrap constraint validation errors in ParameterValidationError
+                    raise ParameterValidationError(
+                        missing_params=[],
+                        provided_params=[key],
+                        available_params=list(definitions.keys()),
+                        param_definitions=definitions,
+                    ) from e
                 resolved_values[key] = value
 
     # Track stdin usage to prevent multiple consumption
@@ -650,7 +706,15 @@ def _parse_cli_params(
         key, value_spec = param_str.split("=", 1)
 
         if key not in definitions:
-            raise ValueError(f"Unknown parameter: {key}")
+            # Raise ParameterValidationError for unknown parameters
+            available = list(definitions.keys())
+            provided = [k for k in [key]]
+            raise ParameterValidationError(
+                missing_params=[],
+                provided_params=provided,
+                available_params=available,
+                param_definitions=definitions,
+            )
 
         param_def = definitions[key]
 
@@ -677,8 +741,17 @@ def _parse_cli_params(
             raw_value = value_spec
 
         # Parse and validate
-        parsed_value = _parse_param_value(raw_value, param_def)
-        _validate_param_constraints(parsed_value, param_def)
+        try:
+            parsed_value = _parse_param_value(raw_value, param_def)
+            _validate_param_constraints(key, parsed_value, param_def)
+        except ValueError as e:
+            # Wrap parsing and constraint validation errors in ParameterValidationError
+            raise ParameterValidationError(
+                missing_params=[],
+                provided_params=[key],
+                available_params=list(definitions.keys()),
+                param_definitions=definitions,
+            ) from e
         resolved_values[key] = parsed_value
 
     # Check required parameters with enhanced error messages
@@ -688,11 +761,14 @@ def _parse_cli_params(
             missing.append(key)
 
     if missing:
-        # Enhanced error message
+        # Enhanced error message with parameter definitions
         provided = [k for k in resolved_values.keys() if k not in computed]
         available = list(definitions.keys())
         raise ParameterValidationError(
-            missing_params=missing, provided_params=provided, available_params=available
+            missing_params=missing,
+            provided_params=provided,
+            available_params=available,
+            param_definitions=definitions,
         )
 
     return resolved_values
@@ -703,28 +779,54 @@ def _parse_cli_params(
 # ==================================================================
 
 
-class TemplateFiller:
-    """Template parameter resolution and substitution engine.
+class MarkdownFormFiller:
+    """Fill markdown forms with parameter values.
 
-    Encapsulates the complete template filling workflow:
-    1. Resolve computed parameters (date, time, env vars)
-    2. Parse and validate CLI parameters
-    3. Substitute placeholders in template content
-    4. Return filled MarkdownDataUpdate ready for application
+    Takes a MarkdownForm (with parameters) and fills placeholders
+    with concrete values to produce MarkdownDataUpdate (complete data).
 
-    Usage:
-        template = load_template('template.yaml')
-        filler = TemplateFiller(template)
-        filled = filler.fill(cli_params=['title=My Doc'])
-        doc.mddata.apply_batch_changes(filled.to_dict())
+    Flow:
+        MarkdownForm → MarkdownFormFiller.fill() → MarkdownDataUpdate
+        (has params)                                (no params, ready to use)
+
+    Renamed from TemplateFiller for consistency with MarkdownForm.
     """
 
-    def __init__(self, template: MarkdownDataUpdate) -> None:
-        """Initialize filler with template."""
-        if not isinstance(template, MarkdownDataUpdate):
-            raise TypeError("Template must be MarkdownDataUpdate instance")
+    def __init__(self, form: MarkdownForm) -> None:
+        """Initialize filler with a form.
 
-        self.template = template
+        Args:
+            form: MarkdownForm instance (must have parameters)
+
+        Raises:
+            TypeError: If form is not a MarkdownForm or MarkdownDataUpdate
+                      with parameters
+        """
+        # Auto-convert MarkdownDataUpdate with parameters to MarkdownForm
+        if isinstance(form, MarkdownDataUpdate) and not isinstance(form, MarkdownForm):
+            if form.parameters:
+                # Convert to MarkdownForm
+                form = MarkdownForm(
+                    frontmatter=form.frontmatter,
+                    content=form.content,
+                    frontmatter_policy=form.frontmatter_policy,
+                    parameters=form.parameters,
+                    sections=form.sections,
+                )
+            else:
+                raise TypeError(
+                    f"Expected MarkdownForm with parameters, got "
+                    f"{type(form).__name__} without parameters. "
+                    "Use MarkdownForm for parameterized templates."
+                )
+        elif not isinstance(form, MarkdownForm):
+            raise TypeError(
+                f"Expected MarkdownForm, got {type(form).__name__}. "
+                "Use MarkdownForm for parameterized templates."
+            )
+
+        self.form = form
+        self.parameters = form.parameters
         self._computed_params: ResolvedParameters | None = None
 
     def fill(
@@ -733,7 +835,10 @@ class TemplateFiller:
         params_file: str | None = None,
         params_dict: dict[str, Any] | None = None,
     ) -> MarkdownDataUpdate:
-        """Fill template with parameters and return ready-to-apply update.
+        """Fill form with parameter values.
+
+        Returns MarkdownDataUpdate (no parameters) because the filled
+        result is complete data ready to use.
 
         Args:
             cli_params: List of KEY=VALUE parameter strings
@@ -741,20 +846,27 @@ class TemplateFiller:
             params_dict: Dictionary of parameters (pre-loaded)
 
         Returns:
-            Filled MarkdownDataUpdate ready to apply
+            MarkdownDataUpdate with placeholders filled
+
+        Raises:
+            ParameterValidationError: On validation failures
         """
         # Resolve all parameters with proper precedence
         resolved_params = self._resolve_all_parameters(
             cli_params or [], params_file, params_dict
         )
 
-        # Convert template to dict for substitution
-        template_dict = self.template.to_dict()
+        # Convert form to dict for substitution
+        form_dict = self.form.to_dict()
 
         # Substitute placeholders recursively
-        substituted_dict = _substitute_in_dict(template_dict, resolved_params)
+        substituted_dict = _substitute_in_dict(form_dict, resolved_params)
 
         # Create filled MarkdownDataUpdate from substituted dict
+        # Remove parameters since this is now complete data
+        if "parameters" in substituted_dict:
+            del substituted_dict["parameters"]
+
         filled_update = MarkdownDataUpdate.from_dict(substituted_dict)
 
         return filled_update
@@ -768,18 +880,41 @@ class TemplateFiller:
         """Resolve parameters with proper precedence."""
         # Get computed parameters (cache for efficiency)
         if self._computed_params is None:
-            self._computed_params = _resolve_computed_params(self.template)
+            self._computed_params = _resolve_computed_params(self.form)
 
         computed = self._computed_params
 
         # Parse CLI params with precedence handling built-in
         resolved = _parse_cli_params(
             cli_params,
-            self.template.parameters,
+            self.form.parameters,
             computed,
             params_file=params_file,
             params_dict=params_dict,
         )
+
+        # Add empty strings for optional parameters that weren't provided
+        # This ensures placeholder substitution doesn't fail for optional params
+        for key, param_def in self.form.parameters.items():
+            if key not in resolved:
+                # Only add if parameter is optional (not required)
+                if not param_def.get("required", False):
+                    resolved[key] = ""
+
+        # Auto-generate {param_name_list} placeholders for array parameters
+        # This formats arrays as markdown bullet lists
+        for key, value in list(resolved.items()):
+            param_def = self.form.parameters.get(key, {})
+            if param_def.get("type") == ParameterType.ARRAY and isinstance(value, list):
+                # Create formatted list version
+                if value:
+                    list_content = "\n".join(f"- {item}" for item in value)
+                else:
+                    list_content = ""
+                resolved[f"{key}_list"] = list_content
+            elif param_def.get("type") == ParameterType.ARRAY and not value:
+                # Empty array or empty string for optional arrays
+                resolved[f"{key}_list"] = ""
 
         # Resolve computed placeholders in parameter values themselves
         final_params: dict[str, ParameterValue] = {}
@@ -793,14 +928,18 @@ class TemplateFiller:
         return final_params
 
     def get_computed_parameters(self) -> ResolvedParameters:
-        """Get computed parameters (date, time, env vars) for this template."""
+        """Get computed parameters (date, time, env vars) for this form."""
         if self._computed_params is None:
-            self._computed_params = _resolve_computed_params(self.template)
+            self._computed_params = _resolve_computed_params(self.form)
         return self._computed_params.copy()
 
     def get_parameter_info(self) -> dict[str, object]:
-        """Get information about template parameters."""
+        """Get information about form parameters."""
         return {
-            "definitions": self.template.parameters,
+            "definitions": self.form.parameters,
             "computed": self.get_computed_parameters(),
         }
+
+
+# Backward compatibility alias
+TemplateFiller = MarkdownFormFiller

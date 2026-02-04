@@ -7,10 +7,16 @@ from pathlib import Path
 from typing import Any
 
 from .errors import DataStructureError, ParameterValidationError
-from .models import MarkdownDataDict, MarkdownDataUpdate
+from .models import (
+    MarkdownDataDict,
+    MarkdownDataUpdate,
+    MarkdownForm,
+    SectionUpdate,
+    UpdatePolicy,
+)
 from .schema import SchemaValidator, schema_to_markdown_dict
 from .source import MarkdownFile
-from .templates.filler import TemplateFiller
+from .templates.filler import MarkdownFormFiller
 from .utils import DataLoadError, load_data_update, load_markdown_data_dict
 
 # Configure logging
@@ -238,7 +244,11 @@ def load_and_validate_data(
 
 # Operation Mode Detection
 def determine_operation_mode(
-    data: str | None, schema: str | None, target_file: Path | None, output: str | None
+    data: str | None,
+    schema: str | None,
+    target_file: Path | None,
+    output: str | None,
+    form: str | None = None,
 ) -> OperationMode:
     """Determine the operation mode based on provided arguments.
 
@@ -344,10 +354,19 @@ def _create_new_document(
 
         # Handle MarkdownDataUpdate (template) vs MarkdownDataDict (complete data)
         if isinstance(data, MarkdownDataUpdate):
-            # Fill template with parameters if provided
-            if parameters:
-                filler = TemplateFiller(data)
-                filled_data = filler.fill(params_dict=parameters)
+            # Check if template has required parameters
+            has_required_params = False
+            if data.parameters:
+                for param_def in data.parameters.values():
+                    if isinstance(param_def, dict) and param_def.get("required", False):
+                        has_required_params = True
+                        break
+
+            # If template has required params,
+            # we must validate even if no params provided
+            if has_required_params or parameters:
+                filler = MarkdownFormFiller(data)
+                filled_data = filler.fill(params_dict=parameters or {})
                 document_data = filled_data.as_markdown_dict()
             else:
                 document_data = data.as_markdown_dict()
@@ -370,6 +389,9 @@ def _create_new_document(
             document=document_data,
             metadata={"output_file": str(output_file), "mode": "create"},
         )
+    except ParameterValidationError:
+        # Re-raise parameter validation errors to be caught at CLI level
+        raise
     except Exception as e:
         return OperationResult(
             success=False, errors=[f"Failed to create document: {str(e)}"]
@@ -390,10 +412,18 @@ def _modify_existing_document(
 
         # Apply updates based on data type
         if isinstance(data, MarkdownDataUpdate):
-            # Fill template with parameters if provided
-            if data.is_template() and parameters:
-                filler = TemplateFiller(data)
-                data = filler.fill(params_dict=parameters)
+            # Fill form with parameters if it has parameters
+            if data.parameters:
+                # Convert to MarkdownForm for filling
+                form = MarkdownForm(
+                    frontmatter=data.frontmatter,
+                    content=data.content,
+                    frontmatter_policy=data.frontmatter_policy,
+                    parameters=data.parameters,
+                    sections=data.sections,
+                )
+                filler = MarkdownFormFiller(form)
+                data = filler.fill(params_dict=parameters or {})
 
             # Apply batch changes using MarkdownData's method
             batch_result = existing_doc.mddata.apply_batch_changes(data)
@@ -404,8 +434,23 @@ def _modify_existing_document(
                     warnings=batch_result["warnings"],
                 )
         else:
-            # Replace entire document with new data (not typical for modify mode)
-            existing_doc = MarkdownFile.from_dict(data, filepath=str(target_file))
+            # Convert MarkdownDataDict to MarkdownDataUpdate with default policy
+            update = MarkdownDataUpdate(
+                frontmatter=data.get("frontmatter", {}),
+                content=data.get("content"),
+                sections=[
+                    s if isinstance(s, SectionUpdate) else SectionUpdate.from_dict(s)
+                    for s in data.get("sections", [])
+                ],
+                frontmatter_policy=UpdatePolicy.MERGE,  # Default to merge
+            )
+            batch_result = existing_doc.mddata.apply_batch_changes(update)
+            if not batch_result["success"]:
+                return OperationResult(
+                    success=False,
+                    errors=batch_result["errors"],
+                    warnings=batch_result["warnings"],
+                )
 
         # Validate against schema if provided (before saving)
         if schema:
@@ -426,6 +471,9 @@ def _modify_existing_document(
                 "policy": policy,
             },
         )
+    except ParameterValidationError:
+        # Re-raise parameter validation errors to be caught at CLI level
+        raise
     except Exception as e:
         return OperationResult(
             success=False, errors=[f"Failed to modify document: {str(e)}"]
@@ -489,15 +537,26 @@ def _render_to_stdout(
         if isinstance(data, MarkdownDataUpdate):
             logger.debug("Processing MarkdownDataUpdate (template)")
 
-            # Fill template with parameters if provided
-            if parameters:
-                logger.debug("Filling template with parameters")
-                try:
-                    filler = TemplateFiller(data)
-                    if filler is None:
-                        raise ValueError("TemplateFiller initialization returned None")
+            # Check if template has required parameters
+            has_required_params = False
+            if data.parameters:
+                for param_def in data.parameters.values():
+                    if isinstance(param_def, dict) and param_def.get("required", False):
+                        has_required_params = True
+                        break
 
-                    filled_data = filler.fill(params_dict=parameters)
+            # If template has required params,
+            # we must validate even if no params provided
+            if has_required_params or parameters:
+                logger.debug("Filling template with parameters (validation required)")
+                try:
+                    filler = MarkdownFormFiller(data)
+                    if filler is None:
+                        raise ValueError(
+                            "MarkdownFormFiller initialization returned None"
+                        )
+
+                    filled_data = filler.fill(params_dict=parameters or {})
                     if filled_data is None:
                         template_params = (
                             list(data.parameters.keys()) if data.parameters else []
@@ -506,7 +565,7 @@ def _render_to_stdout(
                             "Template filler returned None. "
                             "This usually indicates missing "
                             "required parameters.\n"
-                            f"Provided parameters: {list(parameters.keys())}\n"
+                            f"Provided parameters: {list((parameters or {}).keys())}\n"
                             f"Template parameters: {template_params}"
                         )
 
@@ -518,13 +577,16 @@ def _render_to_stdout(
                             "as_markdown_dict() returned None. "
                             "This indicates an issue with the template structure."
                         )
+                except ParameterValidationError:
+                    # Re-raise parameter validation errors to be caught at CLI level
+                    raise
                 except Exception as e:
                     error_msg = (
                         f"Failed to fill template: {str(e)}\n"
                         f"Location: src/mddata/operations.py:_render_to_stdout\n"
                         f"Data type: {type(data).__name__}\n"
                         f"Has parameters: {bool(data.parameters)}\n"
-                        f"Provided params: {list(parameters.keys())}"
+                        f"Provided params: {list((parameters or {}).keys())}"
                     )
                     logger.error(error_msg, exc_info=True)
                     return OperationResult(success=False, errors=[error_msg])
@@ -567,13 +629,17 @@ def _render_to_stdout(
         if rendered_content is None:
             raise ValueError("to_markdown() returned None")
 
-        # In a real CLI, this would print to stdout
-        # For now, return it in metadata
+        # Print to stdout for CLI mode
+        print(rendered_content)
+
         return OperationResult(
             success=True,
             document=document_data,
             metadata={"rendered_content": rendered_content, "mode": "stdout"},
         )
+    except ParameterValidationError:
+        # Re-raise parameter validation errors to be caught at CLI level
+        raise
     except Exception as e:
         # Enhanced error message with context
         error_msg = (

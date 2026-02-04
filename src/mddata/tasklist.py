@@ -47,20 +47,40 @@ class TaskList:
         return [task for task in self.tasks if task["symbol"] == symbol]
 
     def get_completed_tasks(self) -> list[TaskItemData]:
-        """Get tasks marked as completed (x or X).
+        """Get tasks marked as completed (x or X), including subtasks.
 
         Returns:
             List of completed tasks
         """
-        return [task for task in self.tasks if task["symbol"].lower() == "x"]
+
+        def collect_completed(tasks: list[TaskItemData]) -> list[TaskItemData]:
+            result = []
+            for task in tasks:
+                if task["symbol"].lower() == "x":
+                    result.append(task)
+                if "subtasks" in task:
+                    result.extend(collect_completed(task["subtasks"]))
+            return result
+
+        return collect_completed(self.tasks)
 
     def get_pending_tasks(self) -> list[TaskItemData]:
-        """Get tasks marked as pending (space).
+        """Get tasks marked as pending (space), including subtasks.
 
         Returns:
             List of pending tasks
         """
-        return [task for task in self.tasks if task["symbol"] == " "]
+
+        def collect_pending(tasks: list[TaskItemData]) -> list[TaskItemData]:
+            result = []
+            for task in tasks:
+                if task["symbol"] == " ":
+                    result.append(task)
+                if "subtasks" in task:
+                    result.extend(collect_pending(task["subtasks"]))
+            return result
+
+        return collect_pending(self.tasks)
 
     def get_all_symbols(self) -> set[str]:
         """Get unique set of all checkbox symbols used.
@@ -72,80 +92,75 @@ class TaskList:
 
     # Mutation Methods
 
-    def mark_completed(self, task_index: int | str) -> None:
+    def mark_completed(self, task_ref: int | str) -> None:
         """Mark specific task as completed.
 
         Args:
-            task_index: Index of task to mark as completed, or task UID
+            task_ref: Index of task to mark as completed, or task UID (hierarchical)
 
         Raises:
             IndexError: If task_index is out of range
             ValueError: If UID is not found
         """
-        if isinstance(task_index, str):
-            # Handle UID
-            index = self.get_task_index_by_uid(task_index)
-            if index is None:
-                raise ValueError(f"Task with UID '{task_index}' not found")
-        else:
-            # Handle numeric index
-            if not (0 <= task_index < len(self.tasks)):
-                raise IndexError(f"Task index {task_index} out of range")
-            index = task_index
-
-        self.tasks[index]["symbol"] = "x"
+        task = self._resolve_task_reference(task_ref)
+        task["symbol"] = "x"
         self._sync_block_content()
 
-    def mark_pending(self, task_index: int | str) -> None:
+    def _resolve_task_reference(self, task_ref: int | str) -> TaskItemData:
+        """Resolve a task reference to a TaskItemData object.
+
+        Args:
+            task_ref: Numeric index or hierarchical UID string
+
+        Returns:
+            The referenced task
+
+        Raises:
+            IndexError: If numeric index is out of range
+            ValueError: If UID is not found
+        """
+        if isinstance(task_ref, str):
+            # Handle hierarchical UID
+            task = self.get_task_by_uid(task_ref)
+            if task is None:
+                raise ValueError(f"Task with UID '{task_ref}' not found")
+            return task
+        else:
+            # Handle numeric index
+            if not (0 <= task_ref < len(self.tasks)):
+                raise IndexError(f"Task index {task_ref} out of range")
+            return self.tasks[task_ref]
+
+    def mark_pending(self, task_ref: int | str) -> None:
         """Mark specific task as pending.
 
         Args:
-            task_index: Index of task to mark as pending, or task UID
+            task_ref: Index of task to mark as pending, or task UID (hierarchical)
 
         Raises:
             IndexError: If task_index is out of range
             ValueError: If UID is not found
         """
-        if isinstance(task_index, str):
-            # Handle UID
-            index = self.get_task_index_by_uid(task_index)
-            if index is None:
-                raise ValueError(f"Task with UID '{task_index}' not found")
-        else:
-            # Handle numeric index
-            if not (0 <= task_index < len(self.tasks)):
-                raise IndexError(f"Task index {task_index} out of range")
-            index = task_index
-
-        self.tasks[index]["symbol"] = " "
+        task = self._resolve_task_reference(task_ref)
+        task["symbol"] = " "
         self._sync_block_content()
 
-    def set_symbol(self, task_index: int | str, symbol: str) -> None:
+    def set_symbol(self, task_ref: int | str, symbol: str) -> None:
         """Set custom checkbox symbol for task.
 
         Args:
-            task_index: Index of task to update, or task UID
+            task_ref: Index of task to update, or task UID (hierarchical)
             symbol: Single character symbol
 
         Raises:
             IndexError: If task_index is out of range
             ValueError: If symbol is not single character or UID is not found
         """
-        if isinstance(task_index, str):
-            # Handle UID
-            index = self.get_task_index_by_uid(task_index)
-            if index is None:
-                raise ValueError(f"Task with UID '{task_index}' not found")
-        else:
-            # Handle numeric index
-            if not (0 <= task_index < len(self.tasks)):
-                raise IndexError(f"Task index {task_index} out of range")
-            index = task_index
-
         if len(symbol) != 1:
             raise ValueError("Symbol must be single character")
 
-        self.tasks[index]["symbol"] = symbol
+        task = self._resolve_task_reference(task_ref)
+        task["symbol"] = symbol
         self._sync_block_content()
 
     def add_task(self, content: str, symbol: str = " ") -> str:
@@ -182,31 +197,57 @@ class TaskList:
 
         return uid
 
-    def remove_task(self, task_index: int | str) -> None:
+    def remove_task(self, task_ref: int | str) -> None:
         """Remove task from the list.
 
         Args:
-            task_index: Index of task to remove, or task UID
+            task_ref: Index of task to remove, or task UID (hierarchical)
 
         Raises:
             IndexError: If task_index is out of range
             ValueError: If UID is not found
         """
-        if isinstance(task_index, str):
-            # Handle UID
-            index = self.get_task_index_by_uid(task_index)
-            if index is None:
-                raise ValueError(f"Task with UID '{task_index}' not found")
-        else:
-            # Handle numeric index
-            if not (0 <= task_index < len(self.tasks)):
-                raise IndexError(f"Task index {task_index} out of range")
-            index = task_index
+        # For removal, we need to handle hierarchical references differently
+        # since we need to know the parent to remove from
+        if isinstance(task_ref, str) and "." in task_ref:
+            # Hierarchical UID - need to remove from subtasks
+            uid_parts = task_ref.split(".")
+            parent_uid = ".".join(uid_parts[:-1])
+            target_uid = uid_parts[-1]
 
-        self.tasks.pop(index)
-        if isinstance(self.block.content, list):
-            self.block.content.pop(index)
-        self.block.metadata["tasks"] = self.tasks  # type: ignore
+            parent_task = self.get_task_by_uid(parent_uid)
+            if parent_task is None:
+                raise ValueError(f"Parent task with UID '{parent_uid}' not found")
+
+            if "subtasks" not in parent_task:
+                raise ValueError(f"Parent task '{parent_uid}' has no subtasks")
+
+            # Find and remove the subtask
+            subtasks = parent_task["subtasks"]
+            for i, subtask in enumerate(subtasks):
+                if subtask.get("uid") == target_uid:
+                    subtasks.pop(i)
+                    self._sync_block_content()
+                    return
+
+            raise ValueError(
+                f"Subtask with UID '{target_uid}' not found under '{parent_uid}'"
+            )
+        else:
+            # Simple case - remove from root level
+            if isinstance(task_ref, str):
+                index = self.get_task_index_by_uid(task_ref)
+                if index is None:
+                    raise ValueError(f"Task with UID '{task_ref}' not found")
+            else:
+                if not (0 <= task_ref < len(self.tasks)):
+                    raise IndexError(f"Task index {task_ref} out of range")
+                index = task_ref
+
+            self.tasks.pop(index)
+            if isinstance(self.block.content, list):
+                self.block.content.pop(index)
+            self.block.metadata["tasks"] = self.tasks  # type: ignore
 
     def reorder_tasks(self, new_order: list[int]) -> None:
         """Reorder tasks based on index array.
@@ -244,48 +285,78 @@ class TaskList:
         return hash_obj.hexdigest()[:4].upper()
 
     def _ensure_uids(self) -> None:
-        """Ensure all tasks have unique UIDs."""
+        """Ensure all tasks and subtasks have unique UIDs."""
         used_uids = set()
         for task in self.tasks:
-            if "uid" not in task or not task.get("uid"):
-                # Generate UID from content
-                base_uid = self._generate_uid(task["content"])
-                uid = base_uid
-                counter = 1
-                # Ensure uniqueness within this task list
-                while uid in used_uids:
-                    uid = f"{base_uid}{counter}"
-                    counter += 1
-                task["uid"] = uid
-                used_uids.add(uid)
-            else:
-                used_uids.add(task["uid"])
+            self._ensure_task_uid(task, used_uids)
+
+    def _ensure_task_uid(self, task: TaskItemData, used_uids: set[str]) -> None:
+        """Ensure a task and its subtasks have unique UIDs."""
+        if "uid" not in task or not task.get("uid"):
+            # Generate UID from content
+            base_uid = self._generate_uid(task["content"])
+            uid = base_uid
+            counter = 1
+            # Ensure uniqueness within this task list
+            while uid in used_uids:
+                uid = f"{base_uid}{counter}"
+                counter += 1
+            task["uid"] = uid
+            used_uids.add(uid)
+        else:
+            used_uids.add(task["uid"])
+
+        # Ensure UIDs for subtasks
+        if "subtasks" in task:
+            for subtask in task["subtasks"]:
+                self._ensure_task_uid(subtask, used_uids)
 
     def get_task_by_uid(self, uid: str) -> TaskItemData | None:
-        """Get task by its UID.
+        """Get task by its UID, supporting hierarchical UIDs like 'A1B2.C3D4'.
 
         Args:
-            uid: Task UID
+            uid: Task UID (can be hierarchical with dots)
 
         Returns:
             Task data if found, None otherwise
         """
-        for task in self.tasks:
-            if task.get("uid") == uid:
-                return task
+        uid_parts = uid.split(".")
+        return self._find_task_by_uid_path(self.tasks, uid_parts)
+
+    def _find_task_by_uid_path(
+        self, tasks: list[TaskItemData], uid_parts: list[str]
+    ) -> TaskItemData | None:
+        """Recursively find task by UID path."""
+        if not uid_parts:
+            return None
+
+        target_uid = uid_parts[0]
+        for task in tasks:
+            if task.get("uid") == target_uid:
+                if len(uid_parts) == 1:
+                    return task
+                elif "subtasks" in task:
+                    return self._find_task_by_uid_path(task["subtasks"], uid_parts[1:])
         return None
 
     def get_task_index_by_uid(self, uid: str) -> int | None:
-        """Get task index by its UID.
+        """Get task index by its UID, supporting hierarchical UIDs.
+
+        For hierarchical UIDs, returns the index of the root task.
 
         Args:
-            uid: Task UID
+            uid: Task UID (can be hierarchical)
 
         Returns:
             Task index if found, None otherwise
         """
+        uid_parts = uid.split(".")
+        if not uid_parts:
+            return None
+
+        target_uid = uid_parts[0]
         for i, task in enumerate(self.tasks):
-            if task.get("uid") == uid:
+            if task.get("uid") == target_uid:
                 return i
         return None
 
@@ -293,7 +364,22 @@ class TaskList:
 
     def _sync_block_content(self) -> None:
         """Synchronize block content list with task metadata."""
-        self.block.content = [task["content"] for task in self.tasks]
+
+        # For now, flatten the hierarchical structure to simple content list
+        # This is a simplified approach - full hierarchical serialization would require
+        # more complex markdown generation
+        def flatten_tasks(tasks: list[TaskItemData]) -> list[str]:
+            """Flatten hierarchical tasks to content list."""
+            result = []
+            for task in tasks:
+                result.append(task["content"])
+                if "subtasks" in task:
+                    # For subtasks, we flatten them but don't preserve
+                    # hierarchy in content - limitation of block model
+                    result.extend(flatten_tasks(task["subtasks"]))
+            return result
+
+        self.block.content = flatten_tasks(self.tasks)
         self.block.metadata["tasks"] = self.tasks  # type: ignore
 
     def __len__(self) -> int:

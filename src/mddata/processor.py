@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Callable
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, cast
 
@@ -101,7 +102,7 @@ class MarkdownProcessor:
         """Parse full markdown document and return structured data."""
         # Use python-frontmatter to extract metadata
         post = fm.loads(text)
-        frontmatter_dict = post.metadata
+        frontmatter_dict = self._convert_frontmatter_dates(post.metadata)
         body = post.content
 
         # Use markdown-it-py to parse content structure
@@ -115,6 +116,56 @@ class MarkdownProcessor:
                 "content": content_tree,
             },
         )
+
+    def _convert_frontmatter_dates(self, frontmatter: dict[str, Any]) -> dict[str, Any]:
+        """Convert ISO date/datetime strings in frontmatter to Python objects.
+
+        Args:
+            frontmatter: Raw frontmatter dictionary from YAML parsing
+
+        Returns:
+            Frontmatter with date/datetime strings converted to objects
+        """
+        converted = {}
+        for key, value in frontmatter.items():
+            converted[key] = self._convert_date_value(value)
+        return converted
+
+    def _convert_date_value(self, value: Any) -> Any:
+        """Recursively convert date/datetime strings to objects.
+
+        Args:
+            value: Value to potentially convert
+
+        Returns:
+            Converted value or original value if not a date string
+        """
+        if isinstance(value, str):
+            # Try to parse as datetime first (more specific)
+            try:
+                # ISO datetime format: 2023-12-25T14:30:00 or 2023-12-25T14:30:00Z
+                if "T" in value:
+                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+            # Try to parse as date
+            try:
+                # ISO date format: 2023-12-25
+                return date.fromisoformat(value)
+            except ValueError:
+                pass
+
+        elif isinstance(value, dict):
+            # Recursively convert nested dictionaries
+            return {k: self._convert_date_value(v) for k, v in value.items()}
+
+        elif isinstance(value, list):
+            # Recursively convert list items
+            return [self._convert_date_value(item) for item in value]
+
+        # Return original value if not convertible
+        return value
 
     def parse_content_to_section(self, text: str, section_path: str) -> Section:
         """Parse markdown text into single section."""
@@ -315,6 +366,7 @@ class MarkdownProcessor:
             "content_tree": content_tree,
             "tokens": tokens,
             "index": 0,
+            "in_list": False,
         }
 
         # Process tokens
@@ -377,6 +429,11 @@ class MarkdownProcessor:
 
     def _handle_paragraph(self, token: Token, state: dict) -> int:
         """Handle paragraph tokens."""
+        # Don't create paragraph blocks when inside a list (handled by list parsing)
+        if state.get("in_list", False):
+            # Skip paragraph_open, inline, and paragraph_close tokens
+            return 3
+
         tokens = state["tokens"]
         i = state["index"]
 
@@ -419,51 +476,159 @@ class MarkdownProcessor:
 
         return {"content": content, "symbol": symbol}
 
+    def _parse_nested_list(
+        self, tokens: list[Token], start_idx: int
+    ) -> tuple[list[TaskItemData], list[str]]:
+        """Parse a nested bullet list structure, extracting tasks with subtasks.
+
+        Args:
+            tokens: List of markdown tokens
+            start_idx: Starting index after BULLET_LIST_OPEN
+
+        Returns:
+            Tuple of (task_items, list_items) where task_items may contain subtasks
+        """
+        task_items: list[TaskItemData] = []
+        list_items: list[str] = []
+        i = start_idx
+
+        while i < len(tokens) and tokens[i].type != TokenType.BULLET_LIST_CLOSE:
+            if tokens[i].type == TokenType.LIST_ITEM_OPEN:
+                # Parse this list item
+                item_task, item_content, subtasks, consumed = self._parse_list_item(
+                    tokens, i
+                )
+                i += consumed
+
+                if item_task:
+                    # This is a task item
+                    task_data = item_task
+                    if subtasks:
+                        task_data["subtasks"] = subtasks
+                    task_items.append(task_data)
+                else:
+                    # This is a regular list item
+                    list_items.append(item_content)
+            else:
+                i += 1
+
+        return task_items, list_items
+
+    def _parse_list_item(
+        self, tokens: list[Token], start_idx: int
+    ) -> tuple[TaskItemData | None, str, list[TaskItemData], int]:
+        """Parse a single list item, potentially with nested subtasks.
+
+        Args:
+            tokens: List of markdown tokens
+            start_idx: Index of LIST_ITEM_OPEN
+
+        Returns:
+            Tuple of (task_data, content, subtasks, tokens_consumed)
+        """
+        i = start_idx
+        content = ""
+        task_data = None
+        subtasks: list[TaskItemData] = []
+
+        # Skip LIST_ITEM_OPEN
+        i += 1
+
+        # Parse content until we hit nested list or end of item
+        while i < len(tokens) and tokens[i].type != TokenType.LIST_ITEM_CLOSE:
+            if tokens[i].type == TokenType.INLINE:
+                item_text = tokens[i].content
+                # Check if this is a task item
+                parsed_task = self._parse_task_item(item_text)
+                if parsed_task:
+                    task_data = parsed_task
+                    content = parsed_task["content"]
+                else:
+                    content = item_text
+                i += 1
+            elif tokens[i].type == TokenType.BULLET_LIST_OPEN:
+                # Found nested list - parse as subtasks
+                nested_tasks, _ = self._parse_nested_list(tokens, i)
+                subtasks = nested_tasks
+                # Skip the entire nested list
+                depth = 1
+                i += 1
+                while i < len(tokens) and depth > 0:
+                    if tokens[i].type == TokenType.BULLET_LIST_OPEN:
+                        depth += 1
+                    elif tokens[i].type == TokenType.BULLET_LIST_CLOSE:
+                        depth -= 1
+                    i += 1
+            else:
+                i += 1
+
+        # Skip LIST_ITEM_CLOSE
+        if i < len(tokens) and tokens[i].type == TokenType.LIST_ITEM_CLOSE:
+            i += 1
+
+        tokens_consumed = i - start_idx
+        return task_data, content, subtasks, tokens_consumed
+
     def _handle_bullet_list(self, token: Token, state: dict) -> int:
-        """Handle bullet list tokens, detecting task lists."""
+        """Handle bullet list tokens, detecting task lists with subtasks."""
         tokens = state["tokens"]
         i = state["index"]
 
-        list_items = []
-        task_items = []
-        j = i + 1
+        # Only process top-level bullet lists (not nested ones)
+        # Nested lists are handled within _parse_nested_list
+        if self._is_nested_list(tokens, i):
+            # This is a nested list, skip it (handled by parent)
+            j = i + 1
+            while j < len(tokens) and tokens[j].type != TokenType.BULLET_LIST_CLOSE:
+                j += 1
+            return j - i + 1
 
-        # Extract list items and check for task patterns
-        while j < len(tokens) and tokens[j].type != TokenType.BULLET_LIST_CLOSE:
-            if tokens[j].type == TokenType.LIST_ITEM_OPEN:
-                # Find the content in this list item
-                k = j + 1
-                while k < len(tokens) and tokens[k].type != TokenType.LIST_ITEM_CLOSE:
-                    if tokens[k].type == TokenType.INLINE:
-                        item_content = tokens[k].content
-                        task_data = self._parse_task_item(item_content)
+        # Set flag to indicate we're processing a list
+        was_in_list = state["in_list"]
+        state["in_list"] = True
 
-                        if task_data:
-                            task_items.append(task_data)
-                        else:
-                            list_items.append(item_content)
-                        break
-                    k += 1
-            j += 1
+        try:
+            # Parse the entire list structure including nested subtasks
+            task_items, list_items = self._parse_nested_list(tokens, i)
 
-        # Create appropriate block type
-        if task_items and not list_items:
-            # Pure task list
-            block = Block(
-                state["current_section"].id,
-                BlockType.TASK_LIST,
-                [t["content"] for t in task_items],
-            )
-            block.metadata["tasks"] = task_items  # type: ignore
-            state["current_section"].add_block(block)
-        elif list_items or task_items:
-            # Regular list or mixed list (treat mixed as regular)
-            all_items = [t["content"] for t in task_items] + list_items
-            block = Block(state["current_section"].id, BlockType.LIST, all_items)
-            state["current_section"].add_block(block)
+            # Create appropriate block type
+            if task_items and not list_items:
+                # Pure task list
+                block = Block(
+                    state["current_section"].id,
+                    BlockType.TASK_LIST,
+                    [t["content"] for t in task_items],
+                )
+                block.metadata["tasks"] = task_items  # type: ignore
+                state["current_section"].add_block(block)
+            elif list_items or task_items:
+                # Regular list or mixed list (treat mixed as regular)
+                all_items = [t["content"] for t in task_items] + list_items
+                block = Block(state["current_section"].id, BlockType.LIST, all_items)
+                state["current_section"].add_block(block)
 
-        # Return how many tokens to skip
-        return j - i + 1
+            # Return how many tokens to skip (find the BULLET_LIST_CLOSE)
+            j = i + 1
+            while j < len(tokens) and tokens[j].type != TokenType.BULLET_LIST_CLOSE:
+                j += 1
+            return j - i + 1
+        finally:
+            state["in_list"] = was_in_list
+
+    def _is_nested_list(self, tokens: list[Token], start_idx: int) -> bool:
+        """Check if this bullet list is nested within another list."""
+        # Count nesting level by tracking unmatched opens/closes
+        depth = 0
+        for i in range(start_idx - 1, -1, -1):
+            token = tokens[i]
+            if token.type == TokenType.BULLET_LIST_CLOSE:
+                depth += 1
+            elif token.type == TokenType.BULLET_LIST_OPEN:
+                depth -= 1
+                if depth < 0:
+                    # This open matches a previous close, we're nested
+                    return True
+        return False
 
     def _handle_ordered_list(self, token: Token, state: dict) -> int:
         """Handle ordered list tokens."""
