@@ -13,7 +13,7 @@ import yaml
 
 from mddata.errors import ParameterValidationError
 from mddata.models import MarkdownDataDict, MarkdownDataUpdate
-from mddata.templates.filler import TemplateFiller
+from mddata.templates.filler import MarkdownFormFiller
 
 
 class DataLoadError(Exception):
@@ -113,6 +113,24 @@ def _load_raw_data(source: str, format: DataFormat | None = None) -> dict:
         raise DataLoadError(f"Invalid YAML from {source_name}: {e}") from e
 
 
+def load_data(source: str, format: DataFormat | None = None) -> dict:
+    """Load data from file or stdin with automatic format detection.
+
+    This is a simple wrapper around _load_raw_data for public API.
+
+    Args:
+        source: File path or '-' for stdin
+        format: Data format (optional, auto-detected from file extension)
+
+    Returns:
+        Loaded data as dictionary
+
+    Raises:
+        DataLoadError: If loading or parsing fails
+    """
+    return _load_raw_data(source, format)
+
+
 def load_data_update(
     source: str,
     format: DataFormat | None = None,
@@ -172,7 +190,7 @@ def load_data_update(
         # This allows loading templates without filling them
         # (for later filling in operations layer)
         if update.parameters is not None and (cli_params or params_file):
-            filler = TemplateFiller(update)
+            filler = MarkdownFormFiller(update)
             update = filler.fill(cli_params=cli_params or [], params_file=params_file)
 
         return update

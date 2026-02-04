@@ -1,6 +1,7 @@
 """Input parsing utilities for CLI commands."""
 
 import json
+from pathlib import Path
 from typing import Any, TypedDict
 
 
@@ -92,3 +93,34 @@ class InputParser:
         if not result["success"]:
             raise ValueError(result["error"])
         return result["value"]
+
+
+def parse_cli_params(param_list: list[str]) -> dict[str, Any]:
+    """Parse CLI parameters in KEY=VALUE or KEY=@file format.
+
+    Args:
+        param_list: List of parameter strings
+
+    Returns:
+        Dictionary of parsed parameters
+
+    Raises:
+        ValueError: If parameter format is invalid
+    """
+    params = {}
+    for param in param_list:
+        if "=" not in param:
+            raise ValueError(f"Invalid parameter format: {param}. Expected KEY=VALUE")
+
+        key, value = param.split("=", 1)
+
+        # Handle file parameter values (@file)
+        if value.startswith("@"):
+            file_path = Path(value[1:])
+            if not file_path.exists():
+                raise ValueError(f"Parameter file not found: {file_path}")
+            value = file_path.read_text().strip()
+
+        params[key] = value
+
+    return params
