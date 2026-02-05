@@ -1,0 +1,7 @@
+{
+  "api_name": "TestAPI",
+  "version": "not-a-version",
+  "base_url": "https://api.example.com",
+  "maintainer": "Team",
+  "auth_type": "bearer"
+}

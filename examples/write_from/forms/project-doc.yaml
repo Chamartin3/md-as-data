@@ -1,0 +1,87 @@
+parameters:
+  project_name:
+    type: str
+    required: true
+    min: 3
+    max: 50
+    description: "Name of the project"
+  project_type:
+    type: str
+    required: true
+    enum: ["library", "application", "service", "tool"]
+    enum_strict: true
+    description: "Type of project"
+  version:
+    type: str
+    required: true
+    pattern: ^\d+\.\d+\.\d+$
+    description: "Current version (semantic versioning)"
+  maintainer:
+    type: str
+    required: true
+    description: "Project maintainer name"
+  repository_url:
+    type: str
+    required: false
+    pattern: ^https?://
+    description: "Git repository URL"
+  license:
+    type: str
+    required: false
+    default: "MIT"
+    enum: ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause"]
+    enum_strict: false
+    description: "Project license"
+  features:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "List of key features"
+
+frontmatter:
+  title: "{project_name} Documentation"
+  version: "{version}"
+  maintainer: "{maintainer}"
+  license: "{license}"
+  type: "{project_type}"
+
+sections:
+  - id: overview
+    title: "Overview"
+    content: |
+      # {project_name}
+
+      This is the documentation for **{project_name}**, a {project_type} project.
+
+      **Version:** {version}
+      **Maintainer:** {maintainer}
+      **License:** {license}
+
+  - id: features
+    title: "Features"
+    content: |
+      ## Key Features
+
+      {features}
+
+  - id: installation
+    title: "Installation"
+    content: |
+      ## Installation
+
+      <!-- Installation instructions go here -->
+
+  - id: usage
+    title: "Usage"
+    content: |
+      ## Usage
+
+      <!-- Usage examples go here -->
+
+  - id: repository
+    title: "Repository"
+    content: |
+      ## Repository
+
+      {repository_url}

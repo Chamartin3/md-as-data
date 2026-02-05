@@ -123,8 +123,8 @@ result = substitute_placeholders(content, params)
 ### CLI (Pending Task 022)
 
 ```bash
-# Future CLI integration
-mddata modify from-template document.md template.yaml \
+# CLI integration
+mddata write --form template.yaml --output document.md \
   -p title="My Entry" \
   -p category="update"
 ```

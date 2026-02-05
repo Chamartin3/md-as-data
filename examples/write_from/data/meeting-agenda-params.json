@@ -1,0 +1,20 @@
+{
+  "meeting_title": "Q1 Planning Session",
+  "date": "2025-01-25",
+  "time": "2:00 PM",
+  "duration": "90 minutes",
+  "facilitator": "John Manager",
+  "attendees": [
+    "Alice Developer",
+    "Bob Designer",
+    "Carol QA",
+    "David DevOps"
+  ],
+  "agenda_items": [
+    "Review Q4 achievements",
+    "Set Q1 objectives",
+    "Resource allocation discussion",
+    "Risk assessment",
+    "Next steps and timeline"
+  ]
+}

@@ -1,0 +1,45 @@
+frontmatter:
+  product_name:
+    type: str
+    required: true
+    min: 3
+    max: 100
+  version:
+    type: str
+    required: true
+    pattern: ^\d+\.\d+\.\d+$
+  category:
+    type: str
+    required: true
+    enum: ["software", "hardware", "service", "platform"]
+    enum_strict: true
+  price:
+    type: str
+    required: false
+  release_date:
+    type: str
+    required: false
+  status:
+    type: str
+    required: false
+    default: "planning"
+    enum: ["planning", "development", "beta", "released", "deprecated"]
+    enum_strict: true
+
+sections:
+  overview:
+    validation:
+      required: true
+      min_blocks: 1
+  features:
+    validation:
+      required: true
+      min_blocks: 1
+  requirements:
+    validation:
+      required: false
+      min_blocks: 1
+  roadmap:
+    validation:
+      required: false
+      min_blocks: 1

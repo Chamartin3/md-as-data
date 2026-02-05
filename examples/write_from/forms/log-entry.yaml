@@ -1,0 +1,37 @@
+# Simple Template: Log Entry
+# Demonstrates basic parameter substitution with computed parameters
+
+parameters:
+  title:
+    type: str
+    required: true
+    description: "Entry title or summary"
+
+  content:
+    type: str
+    required: false
+    default: ""
+    description: "Detailed entry content"
+
+  category:
+    type: str
+    required: false
+    default: "general"
+    description: "Entry category"
+
+frontmatter:
+  title: "{title}"
+  category: "{category}"
+  last_updated: "{date}"
+  timestamp: "{now}"
+
+sections:
+  - id: "changelog"
+    content: |
+      ## {title}
+
+      **Category**: {category}
+      **Date**: {date}
+
+      {content}
+    policy: append

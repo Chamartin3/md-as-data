@@ -1,0 +1,39 @@
+frontmatter:
+  title: "Daily Standup Notes"
+  date: "2025-01-15"
+  type: "meeting"
+
+sections:
+  - id: attendees
+    title: "Attendees"
+    content: |
+      - Alice (Team Lead)
+      - Bob (Developer)
+      - Charlie (Designer)
+
+  - id: updates
+    title: "Updates"
+    content: |
+      ## Alice
+      - Completed feature X
+      - Starting work on feature Y
+
+      ## Bob
+      - Fixed bug in authentication
+      - Reviewing pull requests
+
+      ## Charlie
+      - Finished UI mockups
+      - Working on design system
+
+  - id: blockers
+    title: "Blockers"
+    content: |
+      No blockers reported.
+
+  - id: action_items
+    title: "Action Items"
+    content: |
+      - [ ] Alice: Review design mockups
+      - [ ] Bob: Deploy bug fix to staging
+      - [ ] Charlie: Update style guide

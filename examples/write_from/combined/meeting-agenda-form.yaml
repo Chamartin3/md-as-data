@@ -1,0 +1,77 @@
+parameters:
+  meeting_title:
+    type: str
+    required: true
+    min: 5
+    max: 100
+    description: "Title of the meeting"
+  date:
+    type: str
+    required: false
+    default: "{date}"
+    description: "Meeting date"
+  time:
+    type: str
+    required: false
+    default: "10:00 AM"
+    description: "Meeting start time"
+  duration:
+    type: str
+    required: false
+    default: "1 hour"
+    description: "Expected duration"
+  facilitator:
+    type: str
+    required: true
+    description: "Meeting facilitator"
+  attendees:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "List of attendees"
+  agenda_items:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Agenda items to discuss"
+
+frontmatter:
+  title: "{meeting_title}"
+  date: "{date}"
+  time: "{time}"
+  duration: "{duration}"
+  facilitator: "{facilitator}"
+
+sections:
+  - id: attendees
+    title: "Attendees"
+    content: |
+      ## Attendees
+
+      **Facilitator:** {facilitator}
+
+      **Participants:**
+      {attendees}
+
+  - id: agenda
+    title: "Agenda"
+    content: |
+      ## Agenda Items
+
+      {agenda_items}
+
+  - id: notes
+    title: "Meeting Notes"
+    content: |
+      ## Notes
+
+      <!-- Meeting notes will be added here -->
+
+  - id: action_items
+    title: "Action Items"
+    content: |
+      ## Action Items
+
+      <!-- Action items will be tracked here -->

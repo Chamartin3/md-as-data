@@ -1,0 +1,26 @@
+{
+  "frontmatter": {
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@company.com",
+    "role": "editor",
+    "active": true,
+    "department": "Engineering"
+  },
+  "sections": [
+    {
+      "id": "bio",
+      "title": "Biography",
+      "content": "Sarah is a senior software engineer with 8 years of experience in web development and data processing. She specializes in Python and JavaScript technologies."
+    },
+    {
+      "id": "skills",
+      "title": "Skills",
+      "content": "- Python (Expert)\n- JavaScript/TypeScript (Advanced)\n- React/Vue.js (Advanced)\n- Docker/Kubernetes (Intermediate)\n- AWS/Azure (Intermediate)"
+    },
+    {
+      "id": "experience",
+      "title": "Experience",
+      "content": "## Senior Software Engineer (2020-Present)\nTechCorp Inc.\n- Led development of data processing pipeline\n- Improved system performance by 40%\n\n## Software Engineer (2017-2020)\nStartupXYZ\n- Built REST APIs serving 10k+ users\n- Implemented CI/CD pipelines"
+    }
+  ]
+}

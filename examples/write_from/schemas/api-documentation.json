@@ -1,0 +1,53 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true
+    },
+    "api_version": {
+      "type": "str",
+      "required": true
+    },
+    "last_updated": {
+      "type": "str",
+      "required": true
+    },
+    "status": {
+      "type": "str",
+      "required": false,
+      "default": "draft"
+    }
+  },
+  "sections": {
+    "overview": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "authentication": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "endpoints": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "examples": {
+      "validation": {
+        "required": false,
+        "min_blocks": 1
+      }
+    },
+    "errors": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    }
+  }
+}

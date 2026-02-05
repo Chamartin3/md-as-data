@@ -1,0 +1,73 @@
+parameters:
+  title:
+    type: str
+    required: true
+    min: 5
+    max: 100
+    description: "Blog post title"
+  author:
+    type: str
+    required: true
+    description: "Author name"
+  publish_date:
+    type: str
+    required: false
+    default: "{date}"
+    description: "Publication date"
+  category:
+    type: str
+    required: true
+    enum: ["tutorial", "news", "opinion", "review"]
+    enum_strict: true
+    description: "Blog post category"
+  tags:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Tags for the post"
+  excerpt:
+    type: str
+    required: false
+    max: 200
+    description: "Short excerpt for the post"
+  featured:
+    type: bool
+    required: false
+    default: false
+    description: "Whether this is a featured post"
+
+frontmatter:
+  title: "{title}"
+  author: "{author}"
+  date: "{publish_date}"
+  category: "{category}"
+  tags: "{tags}"
+  excerpt: "{excerpt}"
+  featured: "{featured}"
+
+sections:
+  - id: introduction
+    title: "Introduction"
+    content: |
+      # {title}
+
+      *By {author} on {publish_date}*
+
+      **Category:** {category}
+
+      {excerpt}
+
+  - id: content
+    title: "Content"
+    content: |
+      ## Main Content
+
+      <!-- Your blog post content goes here -->
+
+  - id: conclusion
+    title: "Conclusion"
+    content: |
+      ## Conclusion
+
+      <!-- Wrap up your thoughts here -->

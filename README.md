@@ -6,6 +6,10 @@ A Python library for treating markdown files as structured data objects with pro
 
 Transform markdown documents into structured data that you can navigate, query, and modify programmatically. Perfect for documentation systems, content management, and automated markdown processing.
 
+### Migration from Older Versions
+
+If you're upgrading from an older version of mddata, see the [Migration Guide](docs/MIGRATION_GUIDE.md) for help transitioning to the new unified `write` command structure.
+
 ## Features
 
 - **Unified write interface** - Single command for creating and modifying documents with intelligent auto-detection
@@ -36,7 +40,37 @@ uv sync --dev
 pip install md-as-data
 ```
 
-### Basic Usage
+### Create a markdown file from data
+
+```bash
+# From JSON data
+mddata write from -d document.json -o new.md
+
+# From template with parameters
+mddata write from -f template.yaml -p title="My Doc" -o new.md
+
+# Generate template from schema
+mddata write from -s schema.json -o template.md
+```
+
+### Modify an existing file
+
+```bash
+# Auto-detects modify mode when file exists
+mddata write from -d changes.json existing.md
+```
+
+### Extract structured data
+
+```bash
+# Extract to JSON
+mddata extract json document.md
+
+# Extract to YAML
+mddata extract yaml document.md
+```
+
+### Basic Usage (Python API)
 
 ```python
 from md_as_data import MarkdownFile
@@ -173,15 +207,15 @@ mddata extract frontmatter document.md --format yaml
 
 ```bash
 # Modify individual properties
-mddata modify set-property document.md title "New Title"
-mddata modify set-property document.md tags '["new", "tags"]' --json
+mddata write set-property document.md title "New Title"
+mddata write set-property document.md tags '["new", "tags"]' --json
 
 # Modify individual sections
-mddata modify set-section document.md intro "Updated content"
-mddata modify set-section document.md intro "Replace all" --policy replace
+mddata write set-section document.md intro "Updated content"
+mddata write set-section document.md intro "Replace all" --policy replace
 
 # Remove properties
-mddata modify remove-property document.md draft
+mddata write remove-property document.md draft
 ```
 
 ### Schema Validation

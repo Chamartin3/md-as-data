@@ -1,0 +1,15 @@
+{
+  "project_name": "mddata",
+  "project_type": "library",
+  "version": "1.0.0",
+  "maintainer": "Jane Developer",
+  "repository_url": "https://github.com/example/mddata",
+  "license": "MIT",
+  "features": [
+    "Parse markdown files into structured data",
+    "Query and navigate content using dot paths",
+    "Modify documents programmatically",
+    "Validate against schemas",
+    "Generate documents from templates"
+  ]
+}

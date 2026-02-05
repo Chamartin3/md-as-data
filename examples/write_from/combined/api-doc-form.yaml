@@ -1,0 +1,92 @@
+parameters:
+  api_name:
+    type: str
+    required: true
+    min: 3
+    max: 50
+    description: "Name of the API"
+  version:
+    type: str
+    required: true
+    pattern: ^\d+\.\d+\.\d+$
+    description: "API version"
+  base_url:
+    type: str
+    required: true
+    pattern: ^https?://
+    description: "Base URL for the API"
+  maintainer:
+    type: str
+    required: true
+    description: "API maintainer"
+  auth_type:
+    type: str
+    required: true
+    enum: ["none", "basic", "bearer", "oauth2", "api_key"]
+    enum_strict: true
+    description: "Authentication type"
+  rate_limit:
+    type: str
+    required: false
+    default: "1000 requests/hour"
+    description: "Rate limiting information"
+  endpoints:
+    type: array
+    item_type: object
+    required: false
+    default: []
+    description: "List of API endpoints"
+
+frontmatter:
+  title: "{api_name} API Documentation"
+  version: "{version}"
+  base_url: "{base_url}"
+  maintainer: "{maintainer}"
+  auth_type: "{auth_type}"
+  rate_limit: "{rate_limit}"
+
+sections:
+  - id: overview
+    title: "Overview"
+    content: |
+      # {api_name} API
+
+      **Version:** {version}
+      **Base URL:** {base_url}
+      **Maintainer:** {maintainer}
+
+      ## Authentication
+
+      This API uses **{auth_type}** authentication.
+
+      ## Rate Limiting
+
+      {rate_limit}
+
+  - id: authentication
+    title: "Authentication"
+    content: |
+      ## Authentication Details
+
+      <!-- Authentication implementation details go here -->
+
+  - id: endpoints
+    title: "Endpoints"
+    content: |
+      ## Available Endpoints
+
+      <!-- Endpoint documentation goes here -->
+
+  - id: examples
+    title: "Examples"
+    content: |
+      ## Usage Examples
+
+      <!-- Code examples go here -->
+
+  - id: errors
+    title: "Error Codes"
+    content: |
+      ## Error Responses
+
+      <!-- Error code documentation goes here -->

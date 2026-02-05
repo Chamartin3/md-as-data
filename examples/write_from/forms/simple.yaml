@@ -1,0 +1,45 @@
+# Simple Template - Flat Format (No 'changes' wrapper)
+# Templates are now direct MarkdownDataUpdate structures
+
+parameters:
+  title:
+    type: str
+    required: true
+    description: Document title
+  author:
+    type: str
+    required: false
+    default: "{env.USER}"
+  date:
+    type: str
+    required: false
+    default: "{date}"
+  tags:
+    type: array
+    item_type: str
+    required: false
+    default: []
+
+# Direct frontmatter (no wrapper)
+frontmatter:
+  title: "{title}"
+  author: "{author}"
+  date: "{date}"
+  tags: "{tags}"
+
+# Direct sections (no wrapper)
+sections:
+  - id: introduction
+    content: |
+      # Introduction
+
+      This document was created on {date} by {author}.
+
+      ## Overview
+
+      Welcome to {title}!
+  - id: content
+    content: |
+      # Main Content
+
+      Add your content here.

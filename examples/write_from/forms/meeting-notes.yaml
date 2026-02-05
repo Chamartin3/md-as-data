@@ -1,0 +1,49 @@
+# Array Parameters Template: Meeting Notes
+# Demonstrates array parameter handling and formatting
+
+parameters:
+  title:
+    type: str
+    required: true
+    description: "Meeting title"
+
+  attendees:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "List of attendees"
+
+  action_items:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Action items from the meeting"
+
+  decisions:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Key decisions made"
+
+frontmatter:
+  title: "{title}"
+  date: "{date}"
+  attendees: "{attendees}"
+
+sections:
+  - id: "meetings"
+    content: |
+      ## {title} - {date}
+
+      ### Attendees
+      {attendees}
+
+      ### Action Items
+      {action_items}
+
+      ### Decisions
+      {decisions}
+    policy: append

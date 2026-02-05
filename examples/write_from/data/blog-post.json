@@ -1,0 +1,31 @@
+{
+  "frontmatter": {
+    "title": "Getting Started with mddata",
+    "author": "Jane Developer",
+    "date": "2025-01-15",
+    "tags": ["tutorial", "markdown", "python"],
+    "published": true
+  },
+  "sections": [
+    {
+      "id": "introduction",
+      "title": "Introduction",
+      "content": "Welcome to this comprehensive guide on using mddata, a powerful Python library for treating markdown files as structured data objects.\n\nIn this tutorial, you'll learn how to programmatically create, modify, and query markdown documents."
+    },
+    {
+      "id": "installation",
+      "title": "Installation",
+      "content": "Install mddata using uv:\n\n```bash\nuv add mddata\n```\n\nOr with pip:\n\n```bash\npip install mddata\n```"
+    },
+    {
+      "id": "quickstart",
+      "title": "Quick Start",
+      "content": "Here's a simple example to get you started:\n\n```python\nfrom mddata import MarkdownFile\n\n# Load a document\ndoc = MarkdownFile('document.md')\n\n# Access frontmatter\nprint(doc.mddata.title)\n\n# Modify content\ndoc.mddata.set_section('intro', 'New introduction')\n\n# Save changes\ndoc.save()\n```"
+    },
+    {
+      "id": "conclusion",
+      "title": "Conclusion",
+      "content": "You now have the basics to start working with mddata. Check out the full documentation for more advanced features!"
+    }
+  ]
+}

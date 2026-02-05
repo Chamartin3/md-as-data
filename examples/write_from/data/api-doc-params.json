@@ -1,0 +1,25 @@
+{
+  "api_name": "TaskManager API",
+  "version": "1.2.0",
+  "base_url": "https://api.taskmanager.com/v1",
+  "maintainer": "DevOps Team",
+  "auth_type": "bearer",
+  "rate_limit": "5000 requests/hour per user",
+  "endpoints": [
+    {
+      "path": "/tasks",
+      "method": "GET",
+      "description": "List all tasks"
+    },
+    {
+      "path": "/tasks",
+      "method": "POST",
+      "description": "Create a new task"
+    },
+    {
+      "path": "/tasks/\\{id\\}",
+      "method": "GET",
+      "description": "Get task by ID"
+    }
+  ]
+}

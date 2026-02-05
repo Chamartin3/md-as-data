@@ -1,0 +1,190 @@
+# Role Schema Template for mddata
+# Defines the standard structure for methodology role documents
+# Generated from: methodology_v2/roles/
+# Version: 1.0.1
+version: 1.0.1
+validation_level: strict
+properties:
+  name:
+    type: str
+    required: true
+    description: "Unique identifier for the role (snake_case). Used for file naming and cross-references. Examples: 'process_designer', 'verification_analyst', 'documentation_maintainer'."
+    validations:
+      - type: min_length
+        value: 1
+        message: "Role name must not be empty"
+      - type: max_length
+        value: 100
+        message: "Role name must not exceed 100 characters"
+  description:
+    type: str
+    required: true
+    description: "One-sentence summary of the role's purpose and primary responsibility. Appears in frontmatter and role listings. Should be concise (70-120 chars) and action-oriented."
+    validations:
+      - type: min_length
+        value: 1
+        message: "Description must not be empty"
+      - type: max_length
+        value: 200
+        message: "Description must not exceed 200 characters"
+sections:
+  role_description:
+    description: "Expands on the frontmatter description with more detail about the role's expertise, domain focus, and overall responsibility within the methodology. Typically 1-3 sentences providing context about what kind of specialist holds this role."
+    validation:
+      required: true
+      min_blocks: 1
+      max_blocks: 2
+      allowed_content:
+        - paragraph
+  task:
+    description: "Defines the specific work this role performs, including clear inputs and outputs. Format: (1) Opening paragraph describing the task, (2) **Input:** statement, (3) **Output:** statement. May include additional guidance about working constraints (e.g., 'Work on one process at a time')."
+    validation:
+      required: true
+      min_blocks: 2
+      max_blocks: 4
+      allowed_content:
+        - paragraph
+  tools:
+    description: "Bulleted list of tools, scripts, and commands this role uses to accomplish their tasks. Each tool should link to its documentation. Include both methodology-specific tools (create-workflow, extract-stages-data) and general tools (mddata, stageflow, AskUserQuestion)."
+    validation:
+      required: true
+      min_blocks: 1
+      max_blocks: 1
+      allowed_content:
+        - list
+  instructions:
+    description: "Step-by-step operational procedures the role follows. Each step is a numbered subsection (### 1. Step Name) containing a bulleted list of concrete actions. Instructions should be detailed enough for someone to execute the role without additional guidance. May include code blocks for examples."
+    validation:
+      required: true
+      min_blocks: 0
+      max_blocks: 0
+      allowed_content:
+        - paragraph
+    children: {}
+    # Subsections are dynamically named (e.g., "1_identify_request_type")
+    # Pattern: numbered steps with snake_case names
+    # Each subsection should contain:
+    #   - Explanatory paragraphs
+    #   - Bulleted action lists
+    #   - Optional code blocks for examples
+    # Note: mddata doesn't support regex patterns in children, so any subsection is allowed
+    # The empty dict {} means "allow any child sections"
+    # Validation happens through the parent section's constraints (min_blocks: 0, max_blocks: 0)
+  quality_criteria:
+    description: "Bulleted list of measurable outcomes that define successful role execution. Each criterion should be specific and verifiable (e.g., 'All stages have clear entry/exit criteria', 'YAML passes stageflow validate'). Used to assess whether the role's work is complete and correct."
+    validation:
+      required: true
+      min_blocks: 1
+      max_blocks: 1
+      allowed_content:
+        - list
+  best_practices:
+    description: "Optional bulleted list of guidelines, tips, and wisdom for executing the role effectively. Focus on judgement calls, common pitfalls to avoid, and principles to follow. Each practice typically starts with a bold principle followed by explanation."
+    validation:
+      required: false
+      min_blocks: 1
+      max_blocks: 2
+      allowed_content:
+        - list
+        - paragraph
+  common_patterns:
+    description: "Optional section documenting recurring scenarios the role encounters, with subsections for each pattern. Each pattern subsection describes the scenario, how to recognize it, and recommended approach. Useful for roles that need to make decisions based on context."
+    validation:
+      required: false
+      min_blocks: 0
+      max_blocks: 0
+      allowed_content:
+        - paragraph
+    children: {}
+    # Pattern subsections (e.g., "pattern:_'we_need_a_workflow_for_x'")
+    # Each pattern includes:
+    #   - Description paragraph
+    #   - Bulleted recognition criteria
+    #   - Bulleted action items
+  example_interactions:
+    description: "Optional section showing concrete examples of role execution through dialogue or workflow walkthroughs. Each example is a subsection with a scenario played out in detail, typically using code blocks to show conversations or process flows."
+    validation:
+      required: false
+      min_blocks: 0
+      max_blocks: 0
+      allowed_content:
+        - paragraph
+    children: {}
+    # Example subsections (e.g., "example_1:_new_workflow")
+    # Each example typically contains:
+    #   - Code block showing dialogue or workflow
+    #   - Optional explanatory paragraphs
+  edge_cases:
+    description: "Optional section documenting unusual scenarios, exceptions, and corner cases the role might encounter. Each edge case is a subsection describing the situation and recommended handling approach."
+    validation:
+      required: false
+      min_blocks: 0
+      max_blocks: 0
+      allowed_content:
+        - paragraph
+    children: {}
+    # Edge case subsections (e.g., "ambiguous_requests")
+    # Each edge case includes:
+    #   - Situation description
+    #   - Recognition criteria
+    #   - Recommended handling approach
+
+# Usage Notes:
+#
+# When creating a new role document:
+# 1. Start with frontmatter containing `name` and `description` properties
+# 2. Follow the section order: role_description, task, tools, instructions, quality_criteria
+# 3. Add optional sections (best_practices, common_patterns, examples) as appropriate
+# 4. Ensure instructions have numbered subsections (### 1. Step Name)
+# 5. Make quality_criteria measurable and specific
+# 6. Link all tools to their documentation
+# 7. Use consistent formatting (bold for **Input:**/**Output:**, bullet lists for criteria)
+#
+# The required sections (role_description through quality_criteria) form the minimum
+# viable role definition. Optional sections add depth for complex roles.
+#
+# Role documents should be self-contained - someone should be able to execute the role
+# using only the information in the document plus linked tool documentation.
+#
+# Child Section Patterns:
+#
+# Instructions subsections:
+#   - Numbered steps with descriptive names (e.g., "1. Extract Stages")
+#   - mddata normalizes to snake_case IDs (e.g., "1_extract_stages")
+#   - Contain paragraphs, lists, and optional code blocks
+#
+# Common Patterns subsections:
+#   - Pattern name as title (e.g., "Pattern: 'We need a workflow for X'")
+#   - mddata normalizes with special chars (e.g., "pattern:_'we_need_a_workflow_for_x'")
+#   - Contain description paragraphs and bulleted lists
+#
+# Example Interactions subsections:
+#   - Numbered examples (e.g., "Example 1: New Workflow")
+#   - mddata normalizes (e.g., "example_1:_new_workflow")
+#   - Primarily code blocks with optional context paragraphs
+#
+# Edge Cases subsections:
+#   - Descriptive titles (e.g., "Ambiguous Requests")
+#   - mddata normalizes to snake_case (e.g., "ambiguous_requests")
+#   - Contain descriptive paragraphs
+#
+# Note on children validation:
+# The empty children dict {} in mddata means "allow any subsections".
+# Since we can't specify regex patterns for subsection names, we rely on:
+#   1. Parent section constraints (min_blocks: 0, max_blocks: 0 = content must be in children)
+#   2. Documentation and conventions for subsection naming
+#   3. Manual review during role document creation
+#
+# Validation Commands:
+#
+# Validate a role document against this schema:
+#   mddata schema validate methodology_v2/roles/your_role.md methodology_v2/metatemplates/role.yaml
+#
+# Validate all role documents:
+#   mddata schema validate methodology_v2/roles/ methodology_v2/metatemplates/role.yaml
+#
+# Display schema information:
+#   mddata schema info methodology_v2/metatemplates/role.yaml
+#
+# Generate schema from existing roles to update this template:
+#   mddata schema generate methodology_v2/roles/ --format yaml --inference-mode strict

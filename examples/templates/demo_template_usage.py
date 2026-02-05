@@ -276,7 +276,7 @@ def main():
     print("=" * 60)
     print("\nThis demonstrates the template system Python API.")
     print("All features are fully functional and tested (88/88 tests passing).")
-    print("\nNote: CLI integration (mddata modify from-template) is pending Task 022.")
+    print("\nNote: CLI integration is available via 'mddata write --form template.yaml'")
 
     demo_log_entry()
     demo_meeting_notes()

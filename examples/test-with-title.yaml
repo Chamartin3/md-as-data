@@ -1,0 +1,13 @@
+parameters:
+  name:
+    type: str
+    required: true
+
+frontmatter:
+  title: "{name}"
+
+sections:
+  - id: intro
+    title: "Introduction"
+    content: |
+      # Hello {name}

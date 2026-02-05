@@ -1,0 +1,40 @@
+frontmatter:
+  title:
+    type: str
+    required: true
+  description:
+    type: str
+    required: true
+  version:
+    type: str
+    required: true
+  license:
+    type: str
+    required: false
+    default: "MIT"
+
+sections:
+  installation:
+    validation:
+      required: true
+      min_blocks: 1
+
+  usage:
+    validation:
+      required: true
+      min_blocks: 1
+
+  features:
+    validation:
+      required: false
+      min_blocks: 1
+
+  contributing:
+    validation:
+      required: false
+      min_blocks: 1
+
+  license:
+    validation:
+      required: false
+      min_blocks: 1

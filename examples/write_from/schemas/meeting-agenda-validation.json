@@ -1,0 +1,52 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true,
+      "min": 5
+    },
+    "date": {
+      "type": "str",
+      "required": true
+    },
+    "time": {
+      "type": "str",
+      "required": true
+    },
+    "duration": {
+      "type": "str",
+      "required": true
+    },
+    "facilitator": {
+      "type": "str",
+      "required": true,
+      "min": 2
+    }
+  },
+  "sections": {
+    "attendees": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "agenda": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "notes": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "action_items": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "frontmatter": {
+    "title": {
+      "type": "str",
+      "required": true,
+      "pattern": ".*API Documentation$"
+    },
+    "version": {
+      "type": "str",
+      "required": true,
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "base_url": {
+      "type": "str",
+      "required": true,
+      "pattern": "^https?://"
+    },
+    "maintainer": {
+      "type": "str",
+      "required": true,
+      "min": 2
+    },
+    "auth_type": {
+      "type": "str",
+      "required": true,
+      "enum": ["none", "basic", "bearer", "oauth2", "api_key"],
+      "enum_strict": true
+    },
+    "rate_limit": {
+      "type": "str",
+      "required": true
+    }
+  },
+  "sections": {
+    "overview": {
+      "validation": {
+        "required": true,
+        "min_blocks": 2
+      }
+    },
+    "authentication": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "endpoints": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "examples": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "errors": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    }
+  }
+}

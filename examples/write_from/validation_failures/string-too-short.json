@@ -1,0 +1,7 @@
+{
+  "api_name": "AB",
+  "version": "1.0.0",
+  "base_url": "https://api.example.com",
+  "maintainer": "Team",
+  "auth_type": "none"
+}

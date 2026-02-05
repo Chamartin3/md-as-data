@@ -1,0 +1,58 @@
+parameters:
+  version:
+    type: str
+    required: true
+    pattern: ^\d+\.\d+\.\d+$
+    description: "Release version number (e.g., 1.2.3)"
+
+  release_date:
+    type: str
+    required: true
+    description: "Release date"
+
+  release_type:
+    type: str
+    required: true
+    enum: ["major", "minor", "patch"]
+    enum_strict: true
+    description: "Type of release"
+
+  breaking_changes:
+    type: bool
+    required: false
+    default: false
+    description: "Whether this release contains breaking changes"
+
+frontmatter:
+  title: "Release Notes v{version}"
+  date: "{release_date}"
+  version: "{version}"
+  type: "{release_type}"
+  breaking: "{breaking_changes}"
+
+sections:
+  - id: overview
+    title: "Overview"
+    content: |
+      Release version {version} - {release_type} release
+      Released on: {release_date}
+
+  - id: whats_new
+    title: "What's New"
+    content: |
+      <!-- Add new features here -->
+
+  - id: improvements
+    title: "Improvements"
+    content: |
+      <!-- Add improvements here -->
+
+  - id: bug_fixes
+    title: "Bug Fixes"
+    content: |
+      <!-- Add bug fixes here -->
+
+  - id: breaking_changes
+    title: "Breaking Changes"
+    content: |
+      <!-- Add breaking changes here -->

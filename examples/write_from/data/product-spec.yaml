@@ -1,0 +1,74 @@
+frontmatter:
+  product_name: "DataFlow Pro"
+  version: "2.1.0"
+  category: "software"
+  price: "$99/month"
+  release_date: "2025-02-15"
+  status: "beta"
+
+sections:
+  - id: overview
+    title: "Product Overview"
+    content: |
+      # DataFlow Pro
+
+      DataFlow Pro is an enterprise-grade data processing and analytics platform designed for modern data teams. It provides powerful tools for ETL operations, real-time streaming, and advanced analytics.
+
+      ## Key Benefits
+
+      - **Scalable Architecture**: Handle millions of records per second
+      - **Real-time Processing**: Stream processing with sub-second latency
+      - **Advanced Analytics**: Built-in ML and statistical functions
+      - **Enterprise Security**: SOC 2 compliant with end-to-end encryption
+
+  - id: features
+    title: "Features"
+    content: |
+      ## Core Features
+
+      ### Data Ingestion
+      - Support for 50+ data sources (databases, APIs, files)
+      - Real-time streaming from Kafka, Kinesis, EventHubs
+      - Batch processing for large datasets
+
+      ### Processing Engine
+      - Visual pipeline designer (drag-and-drop)
+      - SQL and Python transformation support
+      - Built-in data quality checks
+
+      ### Analytics & ML
+      - Pre-built statistical functions
+      - Integration with popular ML frameworks
+      - Custom model deployment
+
+  - id: requirements
+    title: "System Requirements"
+    content: |
+      ## Minimum Requirements
+
+      - **CPU**: 4 cores
+      - **RAM**: 8 GB
+      - **Storage**: 100 GB SSD
+      - **OS**: Linux (Ubuntu 20.04+), Windows Server 2019+, macOS 11+
+
+      ## Recommended Requirements
+
+      - **CPU**: 8+ cores
+      - **RAM**: 16 GB+
+      - **Storage**: 500 GB+ SSD
+      - **Network**: 1 Gbps connection
+
+  - id: roadmap
+    title: "Roadmap"
+    content: |
+      ## Q1 2025
+      - Advanced ML model marketplace
+      - Multi-cloud deployment support
+
+      ## Q2 2025
+      - Real-time collaboration features
+      - Enhanced security with zero-trust architecture
+
+      ## Q3 2025
+      - Mobile app for pipeline monitoring
+      - Integration with major BI tools

@@ -227,7 +227,7 @@ params_dict = load_params_from_file('params.yaml')
 
 ## Notes
 
-- **CLI Integration**: The `mddata modify from-template` command (Task 022) is not yet implemented
+- **CLI Integration**: Available via `mddata write --form template.yaml`
 - **Current Usage**: Templates can be loaded and used programmatically via the Python API
 - **All Features**: Parameter parsing, validation, computed params, and substitution are fully functional
 - **Testing**: All 88 unit tests pass for the template system core

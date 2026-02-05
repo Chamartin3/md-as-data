@@ -1,0 +1,50 @@
+{
+  "frontmatter": {
+    "name": {
+      "type": "str",
+      "required": true,
+      "min": 2,
+      "max": 50
+    },
+    "email": {
+      "type": "str",
+      "required": true,
+      "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    },
+    "role": {
+      "type": "str",
+      "required": true,
+      "enum": ["admin", "editor", "viewer"],
+      "enum_strict": true
+    },
+    "active": {
+      "type": "bool",
+      "required": false,
+      "default": true
+    },
+    "department": {
+      "type": "str",
+      "required": false
+    }
+  },
+  "sections": {
+    "bio": {
+      "validation": {
+        "required": true,
+        "min_blocks": 1
+      }
+    },
+    "skills": {
+      "validation": {
+        "required": false,
+        "min_blocks": 1
+      }
+    },
+    "experience": {
+      "validation": {
+        "required": false,
+        "min_blocks": 1
+      }
+    }
+  }
+}
