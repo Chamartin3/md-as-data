@@ -21,6 +21,14 @@ class SectionQuery(NamedTuple):
     error: str | None  # Error message if operation failed
 
 
+class PathQuery(NamedTuple):
+    """Result of path resolution with ambiguity detection."""
+
+    section: Section | None  # The resolved section (None if not found)
+    warnings: list[str]  # Warning messages about ambiguities encountered
+    path_taken: list[str]  # The actual path parts that were resolved
+
+
 class BlocksQuery(NamedTuple):
     """Result of blocks query with metadata."""
 
@@ -672,6 +680,46 @@ class ContentTree:
                 return None
 
         return current_section if current_section != self.root else None
+
+    def _get_section_by_path_with_warnings(self, path: str) -> PathQuery:
+        """Navigate to section using dot-separated path with ambiguity detection."""
+        parts = path.split(".")
+        current_section = self.root
+        warnings = []
+        path_taken = []
+
+        for i, part in enumerate(parts):
+            # Find all matching children
+            matches = [s for s in current_section.children if s.id == part]
+
+            if not matches:
+                # No matches found
+                return PathQuery(section=None, warnings=warnings, path_taken=path_taken)
+
+            if len(matches) > 1:
+                # Multiple matches - ambiguous
+                parent_path = ".".join(path_taken) if path_taken else "root"
+                match_info = ", ".join(
+                    [
+                        f"'{m.id}' (level {m.level}, {len(m.children)} children)"
+                        for m in matches
+                    ]
+                )
+                warnings.append(
+                    f"Ambiguous path at '{part}' under {parent_path}: "
+                    f"found {len(matches)} sections with ID '{part}' - {match_info}. "
+                    f"Using first match."
+                )
+
+            # Use first match
+            current_section = matches[0]
+            path_taken.append(part)
+
+        return PathQuery(
+            section=current_section if current_section != self.root else None,
+            warnings=warnings,
+            path_taken=path_taken,
+        )
 
     def query_section(self, section_id: str) -> SectionQuery:
         """Comprehensive section query with validation and ambiguity detection.

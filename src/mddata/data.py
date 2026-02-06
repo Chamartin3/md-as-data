@@ -762,6 +762,67 @@ class MarkdownData:
             all_tasks.extend(pending_tasks)
         return all_tasks
 
+    # Path-based extraction
+    def get_value_at_path(self, path: str) -> tuple[Any, list[str]]:
+        """Extract value at a specific path with ambiguity warnings.
+
+        Supports:
+        - Frontmatter properties: "title", "author"
+        - Section paths: "introduction", "features.authentication"
+        - Nested properties: "metadata.tags"
+
+        Args:
+            path: Dot-separated path to the value
+
+        Returns:
+            Tuple of (value, warnings) where:
+            - value: The value at the path. For frontmatter properties,
+                    returns the raw value. For sections, returns the section
+                    content as markdown string.
+            - warnings: List of warning messages about ambiguities encountered
+
+        Raises:
+            KeyError: If the path doesn't exist
+        """
+        if not path:
+            raise ValueError("Path cannot be empty")
+
+        warnings = []
+
+        # Check if it's a frontmatter property first
+        if path in self.frontmatter:
+            return (self.frontmatter[path], warnings)
+
+        # Check for nested frontmatter property (e.g., "metadata.tags")
+        # First try as section path to avoid false positives
+        if "." in path:
+            path_result = self._content._get_section_by_path_with_warnings(path)
+            if path_result.section:
+                # Found as section path - return it
+                processor = MarkdownProcessor()
+                section_dict = path_result.section.to_dict()
+                content = processor._section_data_to_text(section_dict)
+                return (content, path_result.warnings)
+
+            # Not found as section, try as nested frontmatter property
+            parts = path.split(".", 1)
+            if parts[0] in self.frontmatter:
+                value = self.frontmatter[parts[0]]
+                # Navigate nested dict/list structure
+                for part in parts[1].split("."):
+                    if isinstance(value, dict):
+                        if part not in value:
+                            raise KeyError(f"Property path '{path}' not found")
+                        value = value[part]
+                    else:
+                        raise KeyError(
+                            f"Cannot navigate into non-dict value at '{parts[0]}'"
+                        )
+                return (value, warnings)
+
+        # Path not found
+        raise KeyError(f"Path '{path}' not found in document")
+
     # Serialization
     def to_dict(self) -> MarkdownDataDict:
         """Convert to JSON-serializable dictionary."""

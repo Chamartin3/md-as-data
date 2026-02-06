@@ -36,6 +36,7 @@ from .document import (
     ContentInput,
     ContentTree,
     ParsedMarkdownData,
+    PathQuery,
     Section,
     SectionBlocksData,
     SectionContentData,
@@ -84,6 +85,7 @@ __all__ = [
     "FrontmatterProperty",
     # Document models
     "SectionQuery",
+    "PathQuery",
     "BlocksQuery",
     "TaskItemData",
     "BlockMetadata",

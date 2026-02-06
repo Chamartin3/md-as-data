@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `mddata modify` command provides tools for programmatically modifying markdown documents:
+The `mddata write` command provides tools for programmatically modifying markdown documents:
 - **Set properties** - Add or update frontmatter properties
 - **Remove properties** - Delete frontmatter properties
 - **Modify sections** - Update section content with different policies
@@ -11,7 +11,7 @@ The `mddata modify` command provides tools for programmatically modifying markdo
 ## Command Structure
 
 ```bash
-mddata modify <subcommand> <file_path> [arguments] [options]
+mddata write <subcommand> <file_path> [arguments] [options]
 ```
 
 **Important:** All modify commands update the file in-place. Always backup important files or use version control.
@@ -23,12 +23,12 @@ mddata modify <subcommand> <file_path> [arguments] [options]
 Add or update a frontmatter property:
 
 ```bash
-mddata modify set-property document.md <property_name> <value>
+mddata write set-property document.md <property_name> <value>
 ```
 
 **Example - Simple string:**
 ```bash
-mddata modify set-property document.md title "Updated Title"
+mddata write set-property document.md title "Updated Title"
 ```
 
 **Before:**
@@ -47,12 +47,12 @@ title: "Updated Title"
 
 **Example - Number:**
 ```bash
-mddata modify set-property document.md version 2.0
+mddata write set-property document.md version 2.0
 ```
 
 **Example - Boolean:**
 ```bash
-mddata modify set-property document.md published true
+mddata write set-property document.md published true
 ```
 
 **Example - Complex values (JSON):**
@@ -60,15 +60,15 @@ mddata modify set-property document.md published true
 For arrays, objects, or special values, use `--json` flag:
 
 ```bash
-mddata modify set-property document.md tags '["api", "guide", "v2"]' --json
+mddata write set-property document.md tags '["api", "guide", "v2"]' --json
 ```
 
 ```bash
-mddata modify set-property document.md author '{"name": "John Doe", "email": "john@example.com"}' --json
+mddata write set-property document.md author '{"name": "John Doe", "email": "john@example.com"}' --json
 ```
 
 ```bash
-mddata modify set-property document.md config '{"timeout": 30, "retry": true}' --json
+mddata write set-property document.md config '{"timeout": 30, "retry": true}' --json
 ```
 
 **Result:**
@@ -92,12 +92,12 @@ config:
 Delete a frontmatter property:
 
 ```bash
-mddata modify remove-property document.md <property_name>
+mddata write remove-property document.md <property_name>
 ```
 
 **Example:**
 ```bash
-mddata modify remove-property document.md draft
+mddata write remove-property document.md draft
 ```
 
 **Before:**
@@ -123,12 +123,12 @@ Values are automatically typed based on format:
 
 | Input | Type | Example |
 |-------|------|---------|
-| `"text"` | String | `mddata modify set-property doc.md name "John"` |
-| `42` | Integer | `mddata modify set-property doc.md count 42` |
-| `3.14` | Float | `mddata modify set-property doc.md pi 3.14` |
-| `true`/`false` | Boolean | `mddata modify set-property doc.md active true` |
-| `'[1,2,3]' --json` | Array | `mddata modify set-property doc.md nums '[1,2,3]' --json` |
-| `'{"k":"v"}' --json` | Object | `mddata modify set-property doc.md obj '{"k":"v"}' --json` |
+| `"text"` | String | `mddata write set-property doc.md name "John"` |
+| `42` | Integer | `mddata write set-property doc.md count 42` |
+| `3.14` | Float | `mddata write set-property doc.md pi 3.14` |
+| `true`/`false` | Boolean | `mddata write set-property doc.md active true` |
+| `'[1,2,3]' --json` | Array | `mddata write set-property doc.md nums '[1,2,3]' --json` |
+| `'{"k":"v"}' --json` | Object | `mddata write set-property doc.md obj '{"k":"v"}' --json` |
 
 ## Section Operations
 
@@ -137,12 +137,12 @@ Values are automatically typed based on format:
 Update or create section content:
 
 ```bash
-mddata modify set-section document.md <section_id> <content>
+mddata write set-section document.md <section_id> <content>
 ```
 
 **Example - Update existing section:**
 ```bash
-mddata modify set-section document.md introduction "This is the updated introduction text."
+mddata write set-section document.md introduction "This is the updated introduction text."
 ```
 
 **Before:**
@@ -176,9 +176,9 @@ Control how content is merged using `--policy`:
 Merges content while preserving subsections:
 
 ```bash
-mddata modify set-section document.md introduction "New intro content"
+mddata write set-section document.md introduction "New intro content"
 # Same as:
-mddata modify set-section document.md introduction "New intro content" --policy update
+mddata write set-section document.md introduction "New intro content" --policy update
 ```
 
 **Before:**
@@ -213,7 +213,7 @@ Overview subsection.
 Completely replaces section including all subsections:
 
 ```bash
-mddata modify set-section document.md introduction "Fresh start." --policy replace
+mddata write set-section document.md introduction "Fresh start." --policy replace
 ```
 
 **Before:**
@@ -249,7 +249,7 @@ Fresh start.
 Adds content to the end of existing content:
 
 ```bash
-mddata modify set-section document.md notes "Additional note." --policy append
+mddata write set-section document.md notes "Additional note." --policy append
 ```
 
 **Before:**
@@ -283,7 +283,7 @@ Additional note.
 #### Top-Level Section
 
 ```bash
-mddata modify set-section document.md new_section "This is new content."
+mddata write set-section document.md new_section "This is new content."
 ```
 
 **Before:**
@@ -314,7 +314,7 @@ This is new content.
 Use dot notation to create nested sections:
 
 ```bash
-mddata modify set-section document.md introduction.overview "Overview content."
+mddata write set-section document.md introduction.overview "Overview content."
 ```
 
 **Before:**
@@ -344,7 +344,7 @@ Overview content.
 #### Deep Nesting
 
 ```bash
-mddata modify set-section document.md intro.getting_started.prerequisites "You need Python 3.8+."
+mddata write set-section document.md intro.getting_started.prerequisites "You need Python 3.8+."
 ```
 
 **Result:**
@@ -369,13 +369,13 @@ Access sections using dot-separated paths:
 
 ```bash
 # Top-level section
-mddata modify set-section document.md configuration "Config content."
+mddata write set-section document.md configuration "Config content."
 
 # Second-level nested
-mddata modify set-section document.md configuration.database "DB settings."
+mddata write set-section document.md configuration.database "DB settings."
 
 # Third-level nested
-mddata modify set-section document.md configuration.database.connection "Connection details."
+mddata write set-section document.md configuration.database.connection "Connection details."
 ```
 
 **Result structure:**
@@ -409,54 +409,54 @@ Section IDs follow these conventions:
 
 ```bash
 # Update status to published
-mddata modify set-property article.md status "published"
+mddata write set-property article.md status "published"
 
 # Set publication date
-mddata modify set-property article.md published_date "2025-10-23"
+mddata write set-property article.md published_date "2025-10-23"
 
 # Add publishing tags
-mddata modify set-property article.md tags '["published", "featured"]' --json
+mddata write set-property article.md tags '["published", "featured"]' --json
 
 # Update version
-mddata modify set-property article.md version 1.0
+mddata write set-property article.md version 1.0
 ```
 
 ### Example 2: Content Update
 
 ```bash
 # Update introduction
-mddata modify set-section guide.md introduction "Welcome to version 2.0 of our guide."
+mddata write set-section guide.md introduction "Welcome to version 2.0 of our guide."
 
 # Add new section
-mddata modify set-section guide.md whats_new "Version 2.0 introduces several new features."
+mddata write set-section guide.md whats_new "Version 2.0 introduces several new features."
 
 # Update changelog section
-mddata modify set-section guide.md changelog "## Version 2.0\n- New feature A\n- New feature B" --policy append
+mddata write set-section guide.md changelog "## Version 2.0\n- New feature A\n- New feature B" --policy append
 ```
 
 ### Example 3: Document Restructuring
 
 ```bash
 # Replace entire section with new structure
-mddata modify set-section document.md api_reference "See the new API documentation." --policy replace
+mddata write set-section document.md api_reference "See the new API documentation." --policy replace
 
 # Create new subsections
-mddata modify set-section document.md api_reference.authentication "Authentication details here."
-mddata modify set-section document.md api_reference.endpoints "Endpoint documentation here."
-mddata modify set-section document.md api_reference.examples "Example usage here."
+mddata write set-section document.md api_reference.authentication "Authentication details here."
+mddata write set-section document.md api_reference.endpoints "Endpoint documentation here."
+mddata write set-section document.md api_reference.examples "Example usage here."
 ```
 
 ### Example 4: Metadata Management
 
 ```bash
 # Update author information
-mddata modify set-property doc.md author '{"name": "Jane Smith", "role": "Technical Writer"}' --json
+mddata write set-property doc.md author '{"name": "Jane Smith", "role": "Technical Writer"}' --json
 
 # Add review status
-mddata modify set-property doc.md review '{"status": "approved", "reviewer": "John Doe", "date": "2025-10-23"}' --json
+mddata write set-property doc.md review '{"status": "approved", "reviewer": "John Doe", "date": "2025-10-23"}' --json
 
 # Remove outdated property
-mddata modify remove-property doc.md draft
+mddata write remove-property doc.md draft
 ```
 
 ### Example 5: Batch Updates
@@ -464,8 +464,8 @@ mddata modify remove-property doc.md draft
 ```bash
 # Update all documents in folder
 for doc in docs/*.md; do
-  mddata modify set-property "$doc" last_updated "2025-10-23"
-  mddata modify set-property "$doc" version 2.0
+  mddata write set-property "$doc" last_updated "2025-10-23"
+  mddata write set-property "$doc" version 2.0
 done
 ```
 
@@ -474,8 +474,8 @@ done
 ```bash
 # Only update if draft
 if grep -q "draft: true" document.md; then
-  mddata modify set-property document.md status "review"
-  mddata modify set-section document.md review_notes "Ready for review."
+  mddata write set-property document.md status "review"
+  mddata write set-section document.md review_notes "Ready for review."
 fi
 ```
 
@@ -489,16 +489,16 @@ for doc in docs/**/*.md; do
   echo "Processing: $doc"
 
   # Update schema version
-  mddata modify set-property "$doc" schema_version 2.0
+  mddata write set-property "$doc" schema_version 2.0
 
   # Add required new property
-  mddata modify set-property "$doc" category "general"
+  mddata write set-property "$doc" category "general"
 
   # Remove deprecated property
-  mddata modify remove-property "$doc" legacy_field
+  mddata write remove-property "$doc" legacy_field
 
   # Update standard sections
-  mddata modify set-section "$doc" prerequisites "See installation guide."
+  mddata write set-section "$doc" prerequisites "See installation guide."
 done
 
 echo "Migration complete!"
@@ -510,52 +510,52 @@ echo "Migration complete!"
 
 ```bash
 # Increment version
-mddata modify set-property doc.md version 2.1
+mddata write set-property doc.md version 2.1
 
 # Update changelog
-mddata modify set-section doc.md changelog "## v2.1\n- Bug fixes\n- Performance improvements" --policy append
+mddata write set-section doc.md changelog "## v2.1\n- Bug fixes\n- Performance improvements" --policy append
 ```
 
 ### 2. Status Changes
 
 ```bash
 # Move through workflow states
-mddata modify set-property doc.md status "draft"
-mddata modify set-property doc.md status "review"
-mddata modify set-property doc.md status "approved"
-mddata modify set-property doc.md status "published"
+mddata write set-property doc.md status "draft"
+mddata write set-property doc.md status "review"
+mddata write set-property doc.md status "approved"
+mddata write set-property doc.md status "published"
 ```
 
 ### 3. Tag Management
 
 ```bash
 # Add tags
-mddata modify set-property doc.md tags '["python", "tutorial"]' --json
+mddata write set-property doc.md tags '["python", "tutorial"]' --json
 
 # Update tags
-mddata modify set-property doc.md tags '["python", "tutorial", "advanced"]' --json
+mddata write set-property doc.md tags '["python", "tutorial", "advanced"]' --json
 
 # Remove tags
-mddata modify remove-property doc.md tags
+mddata write remove-property doc.md tags
 ```
 
 ### 4. Content Refresh
 
 ```bash
 # Update timestamp
-mddata modify set-property doc.md last_modified "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+mddata write set-property doc.md last_modified "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Add update note
-mddata modify set-section doc.md update_history "Updated on $(date +%Y-%m-%d)" --policy append
+mddata write set-section doc.md update_history "Updated on $(date +%Y-%m-%d)" --policy append
 ```
 
 ### 5. Structure Expansion
 
 ```bash
 # Add new sections to existing document
-mddata modify set-section doc.md troubleshooting "Common issues and solutions."
-mddata modify set-section doc.md troubleshooting.common_errors "Error messages explained."
-mddata modify set-section doc.md troubleshooting.debugging "Debugging techniques."
+mddata write set-section doc.md troubleshooting "Common issues and solutions."
+mddata write set-section doc.md troubleshooting.common_errors "Error messages explained."
+mddata write set-section doc.md troubleshooting.debugging "Debugging techniques."
 ```
 
 ## Policy Comparison
@@ -587,19 +587,19 @@ How to use.
 
 ```bash
 # UPDATE: Keep subsections
-mddata modify set-section doc.md documentation "New main text." --policy update
+mddata write set-section doc.md documentation "New main text." --policy update
 ```
 Result: Main text changes, Installation and Usage preserved
 
 ```bash
 # REPLACE: Remove everything
-mddata modify set-section doc.md documentation "Start over." --policy replace
+mddata write set-section doc.md documentation "Start over." --policy replace
 ```
 Result: Only "Start over." remains, subsections gone
 
 ```bash
 # APPEND: Add to end
-mddata modify set-section doc.md documentation "More info." --policy append
+mddata write set-section doc.md documentation "More info." --policy append
 ```
 Result: Original text + "More info.", subsections preserved
 
@@ -609,7 +609,7 @@ Result: Original text + "More info.", subsections preserved
 
 **Invalid JSON:**
 ```bash
-mddata modify set-property doc.md config '{invalid}' --json
+mddata write set-property doc.md config '{invalid}' --json
 ```
 ```
 Error: Invalid JSON format: Expecting property name enclosed in double quotes
@@ -619,7 +619,7 @@ Error: Invalid JSON format: Expecting property name enclosed in double quotes
 
 **Parent doesn't exist:**
 ```bash
-mddata modify set-section doc.md nonexistent.child "Content"
+mddata write set-section doc.md nonexistent.child "Content"
 ```
 ```
 Error: Parent section 'nonexistent' not found
@@ -628,7 +628,7 @@ Cannot create subsection 'child'
 
 **Ambiguous section:**
 ```bash
-mddata modify set-section doc.md intro "New content"
+mddata write set-section doc.md intro "New content"
 ```
 ```
 Error: Ambiguous section reference 'intro'
@@ -637,8 +637,8 @@ Matches:
   - intro_guide (path: intro_guide)
 
 Use full path to specify:
-  - mddata modify set-section doc.md introduction "content"
-  - mddata modify set-section doc.md intro_guide "content"
+  - mddata write set-section doc.md introduction "content"
+  - mddata write set-section doc.md intro_guide "content"
 ```
 
 ## Best Practices
@@ -648,7 +648,7 @@ Use full path to specify:
 Always commit before bulk modifications:
 ```bash
 git commit -am "Before modifications"
-mddata modify set-property doc.md status "published"
+mddata write set-property doc.md status "published"
 git diff doc.md  # Review changes
 ```
 
@@ -657,7 +657,7 @@ git diff doc.md  # Review changes
 Test transformations on copies first:
 ```bash
 cp document.md document.backup.md
-mddata modify set-section document.md section "Test content"
+mddata write set-section document.md section "Test content"
 # Verify results
 rm document.backup.md
 ```
@@ -670,16 +670,16 @@ For multiple changes, use scripts:
 # update-doc.sh
 DOC="$1"
 
-mddata modify set-property "$DOC" updated "$(date +%Y-%m-%d)"
-mddata modify set-property "$DOC" version 2.0
-mddata modify set-section "$DOC" changes "Updated to v2.0" --policy append
+mddata write set-property "$DOC" updated "$(date +%Y-%m-%d)"
+mddata write set-property "$DOC" version 2.0
+mddata write set-section "$DOC" changes "Updated to v2.0" --policy append
 ```
 
 ### 4. Validate After Changes
 
 Check document structure after modifications:
 ```bash
-mddata modify set-property doc.md status "published"
+mddata write set-property doc.md status "published"
 mddata info summary doc.md
 mddata schema validate doc.md schema.json
 ```

@@ -65,7 +65,7 @@ def _load_raw_data(source: str, format: DataFormat | None = None) -> dict:
 
     Args:
         source: File path or '-' for stdin
-        format: Data format (optional, auto-detected from file extension)
+        format: Data format (optional, auto-detected from file extension or content)
 
     Returns:
         Loaded data as dictionary
@@ -74,16 +74,50 @@ def _load_raw_data(source: str, format: DataFormat | None = None) -> dict:
         DataLoadError: If loading or parsing fails
     """
     try:
-        # Determine format
+        # Read content
         if source == "-":
-            # Stdin - must specify format explicitly
-            if format is None:
-                raise DataLoadError(
-                    "Format must be specified when reading from stdin "
-                    "(use DataFormat.JSON or DataFormat.YAML)"
-                )
-            detected_format = format
+            # Stdin - read content and auto-detect format if not specified
             content = sys.stdin.read()
+
+            if format is None:
+                # Auto-detect format from content
+                # Try JSON first (faster and more common)
+                try:
+                    data = json.loads(content)
+                    if not isinstance(data, dict):
+                        raise DataLoadError(
+                            f"Data must be a dictionary, got {type(data).__name__}"
+                        )
+                    return data
+                except json.JSONDecodeError:
+                    # If JSON fails, try YAML
+                    try:
+                        data = yaml.safe_load(content)
+                        if not isinstance(data, dict):
+                            raise DataLoadError(
+                                f"Data must be a dictionary, got {type(data).__name__}"
+                            )
+                        return data
+                    except yaml.YAMLError as yaml_err:
+                        # Both failed - raise helpful error
+                        raise DataLoadError(
+                            f"Failed to parse stdin as JSON or YAML. "
+                            f"Content must be valid JSON or YAML dictionary format. "
+                            f"YAML error: {yaml_err}"
+                        ) from yaml_err
+            else:
+                # Explicit format provided - parse stdin content
+                detected_format = format
+                if detected_format == DataFormat.JSON:
+                    data = json.loads(content)
+                else:  # DataFormat.YAML
+                    data = yaml.safe_load(content)
+
+                if not isinstance(data, dict):
+                    raise DataLoadError(
+                        f"Data must be a dictionary, got {type(data).__name__}"
+                    )
+                return data
         else:
             # File - auto-detect from extension or use provided format
             file_path = Path(source)
@@ -94,16 +128,18 @@ def _load_raw_data(source: str, format: DataFormat | None = None) -> dict:
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
-        # Parse based on format
-        if detected_format == DataFormat.JSON:
-            data = json.loads(content)
-        else:  # DataFormat.YAML
-            data = yaml.safe_load(content)
+            # Parse file content based on format
+            if detected_format == DataFormat.JSON:
+                data = json.loads(content)
+            else:  # DataFormat.YAML
+                data = yaml.safe_load(content)
 
-        if not isinstance(data, dict):
-            raise DataLoadError(f"Data must be a dictionary, got {type(data).__name__}")
+            if not isinstance(data, dict):
+                raise DataLoadError(
+                    f"Data must be a dictionary, got {type(data).__name__}"
+                )
 
-        return data
+            return data
 
     except json.JSONDecodeError as e:
         source_name = "stdin" if source == "-" else f"file '{source}'"
@@ -111,6 +147,9 @@ def _load_raw_data(source: str, format: DataFormat | None = None) -> dict:
     except yaml.YAMLError as e:
         source_name = "stdin" if source == "-" else f"file '{source}'"
         raise DataLoadError(f"Invalid YAML from {source_name}: {e}") from e
+    except DataLoadError:
+        # Re-raise DataLoadError as-is
+        raise
 
 
 def load_data(source: str, format: DataFormat | None = None) -> dict:

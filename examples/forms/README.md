@@ -2,6 +2,47 @@
 
 This directory contains example templates demonstrating the mddata template system functionality. Templates enable parameterized, reusable document modifications with type-safe validation.
 
+## Form Formats
+
+This directory includes examples in **two formats**:
+
+### 1. Raw Markdown Format
+- Section content includes complete markdown with headings
+- Simple and familiar for basic use cases
+- Examples: `log-entry.yaml`, `meeting-notes.yaml`, `bug-report.yaml`
+
+```yaml
+sections:
+  - id: "section_id"
+    content: |
+      ## Section Heading
+
+      Content goes here
+```
+
+### 2. Structured YAML Format (Recommended)
+- Separates structure (title, level) from content
+- Clearer and more maintainable
+- Better for parameterized titles and complex forms
+- Examples: `meeting-structured.yaml`, `log-entry-structured.yaml`
+
+```yaml
+sections:
+  - id: "section_id"
+    title: "Section Heading"
+    level: 2
+    content: |
+      Content without heading
+```
+
+**Benefits of Structured YAML:**
+- Parameterized section titles: `title: "{param} - {date}"`
+- Explicit heading levels (1-6)
+- Clearer separation of concerns
+- Easier to validate and process
+
+See `docs/MARKDOWN_FORMS.md` for detailed comparison and usage guidance.
+
 ## Available Templates
 
 ### 1. `log-entry.yaml` - Simple Template
@@ -14,6 +55,20 @@ This directory contains example templates demonstrating the mddata template syst
 - Append policy for accumulating entries
 
 **Usage**:
+```bash
+# CLI usage with parameters
+mddata write from -f log-entry.yaml \
+  -p title="Fixed authentication bug" \
+  -p category="bugfix" \
+  -p content="Updated JWT validation logic" \
+  -o changelog.md
+
+# Alternative: Using stdin for data (instead of -p options)
+echo '{"title": "Fixed auth bug", "category": "bugfix", "content": "Updated JWT validation"}' | \
+  mddata write from -f log-entry.yaml -d - -o changelog.md
+```
+
+**Python API**:
 ```python
 from mddata import MarkdownFile
 from mddata.templates import load_template, parse_cli_params, resolve_computed_params
@@ -49,6 +104,24 @@ print(f"Date: {params.values['date']}")  # Auto-computed
 - Structured meeting documentation
 
 **Usage**:
+```bash
+# CLI usage with parameters
+mddata write from -f meeting-notes.yaml \
+  -p title="Sprint Planning" \
+  -p 'attendees=["Alice", "Bob", "Carol"]' \
+  -p 'action_items=["Update docs", "Fix bug #123"]' \
+  -o meeting.md
+
+# Alternative: Using stdin for data
+echo '{
+  "title": "Sprint Planning",
+  "attendees": ["Alice", "Bob", "Carol"],
+  "action_items": ["Update docs", "Fix bug #123"],
+  "decisions": ["Approved new feature"]
+}' | mddata write from -f meeting-notes.yaml -d - -o meeting.md
+```
+
+**Python API**:
 ```python
 from mddata.templates import load_template, parse_cli_params, resolve_computed_params
 
@@ -78,6 +151,27 @@ print(f"Attendees: {params.values['attendees']}")
 - Multiple parameter types
 
 **Usage**:
+```bash
+# CLI usage with parameters
+mddata write from -f bug-report.yaml \
+  -p title="Login endpoint returns 500 error" \
+  -p severity="critical" \
+  -p priority=1 \
+  -p description="The /api/auth/login endpoint is failing" \
+  -o bug-001.md
+
+# Alternative: Using stdin for data (useful for automated bug reporting)
+echo '{
+  "title": "Login endpoint returns 500 error",
+  "severity": "critical",
+  "priority": 1,
+  "description": "The /api/auth/login endpoint is returning 500 errors",
+  "affected_versions": ["1.2.0", "1.2.1"],
+  "reproduce_steps": "1. Navigate to login\\n2. Enter credentials\\n3. Observe error"
+}' | mddata write from -f bug-report.yaml -d - -o bug-001.md
+```
+
+**Python API**:
 ```python
 from mddata.templates import load_template, parse_cli_params, resolve_computed_params
 

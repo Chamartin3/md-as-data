@@ -1,0 +1,57 @@
+# Meeting Notes Form - Structured YAML (Best Practice)
+# Uses title + level + content (markdown string with subsection headings)
+# This avoids the nested children + content bug
+
+parameters:
+  target:
+    type: str
+    required: false
+    default: "meetings"
+    description: "Target section path"
+
+  title:
+    type: str
+    required: true
+    min: 3
+
+  attendees:
+    type: array
+    item_type: str
+    default: []
+
+  decisions:
+    type: array
+    item_type: str
+    default: []
+
+  action_items:
+    type: array
+    item_type: str
+    default: []
+
+  notes:
+    type: str
+    required: false
+    default: ""
+
+frontmatter:
+  title: "{title}"
+  date: "{date}"
+  type: "meeting_notes"
+
+sections:
+  - id: "{target}"
+    title: "{title} - {date}"    # Structured: separate title
+    level: 2                      # Structured: explicit level
+    policy: append
+    content: |                    # Content uses markdown for subsections
+      **Attendees:** {attendees}
+
+      ### Decisions
+      {decisions_list}
+
+      ### Action Items
+      {action_items_list}
+
+      ### Notes
+      {notes}

@@ -1,0 +1,66 @@
+# Meeting Notes Form - Structured YAML Format
+# This example uses YAML structure (title/level) instead of raw markdown
+# NOTE: See meeting-structured-best.yaml for the recommended approach
+
+parameters:
+  target:
+    type: str
+    required: false
+    default: "meetings"
+    description: "Target section path where meeting should be added"
+
+  title:
+    type: str
+    required: true
+    min: 3
+    description: "Meeting title"
+
+  attendees:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "List of attendees"
+
+  decisions:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Key decisions made"
+
+  action_items:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Action items from the meeting"
+
+  notes:
+    type: str
+    required: false
+    default: ""
+    description: "Additional meeting notes"
+
+frontmatter:
+  title: "{title}"
+  date: "{date}"
+  type: "meeting_notes"
+
+# Structured section definition using YAML
+sections:
+  - id: "{target}"
+    title: "{title} - {date}"
+    level: 2
+    policy: append
+    content: |
+      **Attendees:** {attendees}
+
+      ### Decisions
+      {decisions_list}
+
+      ### Action Items
+      {action_items_list}
+
+      ### Notes
+      {notes}

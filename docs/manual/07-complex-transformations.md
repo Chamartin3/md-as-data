@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `mddata modify from-json` command enables sophisticated bulk transformations by applying multiple changes from a single JSON specification. This is ideal for:
+The `mddata write from -d` command enables sophisticated bulk transformations by applying multiple changes from a single JSON specification. This is ideal for:
 - **Batch updates** - Apply many changes at once
 - **Template-based additions** - Add complete subsections
 - **Scripted workflows** - Programmatic document manipulation
@@ -11,7 +11,7 @@ The `mddata modify from-json` command enables sophisticated bulk transformations
 ## Command Structure
 
 ```bash
-mddata modify from-json <file_path> <json_source> [options]
+mddata write from -d <file_path> <json_source> [options]
 ```
 
 **Arguments:**
@@ -111,23 +111,23 @@ Each section change specifies:
 
 **Apply changes:**
 ```bash
-mddata modify from-json document.md changes.json
+mddata write from -d document.md changes.json
 ```
 
 ### Example 2: From stdin
 
 ```bash
-cat changes.json | mddata modify from-json document.md -
+cat changes.json | mddata write from -d document.md -
 ```
 
 ```bash
-echo '{"frontmatter": {"status": "draft"}}' | mddata modify from-json document.md -
+echo '{"frontmatter": {"status": "draft"}}' | mddata write from -d document.md -
 ```
 
 ### Example 3: Dry Run Preview
 
 ```bash
-mddata modify from-json document.md changes.json --dry-run
+mddata write from -d document.md changes.json --dry-run
 ```
 
 **Output:**
@@ -171,7 +171,7 @@ Create entire new subsections with full content:
 
 **Apply:**
 ```bash
-mddata modify from-json document.md add-feature.json
+mddata write from -d document.md add-feature.json
 ```
 
 **Result structure:**
@@ -227,7 +227,7 @@ Available events:
 
 **Apply:**
 ```bash
-mddata modify from-json document.md api-section.json
+mddata write from -d document.md api-section.json
 ```
 
 **Result:** Complete API reference section with authentication and endpoints subsections.
@@ -265,7 +265,7 @@ mddata modify from-json document.md api-section.json
 
 **Apply:**
 ```bash
-mddata modify from-json document.md migrate-v2.json
+mddata write from -d document.md migrate-v2.json
 ```
 
 **Result:**
@@ -312,7 +312,7 @@ mddata modify from-json document.md migrate-v2.json
 
 **Apply:**
 ```bash
-mddata modify from-json document.md reorganize.json
+mddata write from -d document.md reorganize.json
 ```
 
 **Result:** Complete new "Getting Started" section with three subsections.
@@ -353,7 +353,7 @@ print(json.dumps(transform, indent=2))
 
 **Usage:**
 ```bash
-python generate-updates.py | mddata modify from-json document.md -
+python generate-updates.py | mddata write from -d document.md -
 ```
 
 ### Example 9: Dynamic Content Injection
@@ -409,7 +409,7 @@ console.log(JSON.stringify(transform, null, 2));
 
 **Usage:**
 ```bash
-node inject-api-docs.js | mddata modify from-json api-reference.md -
+node inject-api-docs.js | mddata write from -d api-reference.md -
 ```
 
 ## Pipeline Integration
@@ -432,12 +432,12 @@ cat > /tmp/stage1.json << 'EOF'
   }
 }
 EOF
-mddata modify from-json "$DOC" /tmp/stage1.json
+mddata write from -d "$DOC" /tmp/stage1.json
 
 # Stage 2: Add generated content
 echo "Stage 2: Adding generated content..."
 python generate-content.py > /tmp/stage2.json
-mddata modify from-json "$DOC" /tmp/stage2.json
+mddata write from -d "$DOC" /tmp/stage2.json
 
 # Stage 3: Finalize
 echo "Stage 3: Finalizing..."
@@ -456,7 +456,7 @@ cat > /tmp/stage3.json << 'EOF'
   ]
 }
 EOF
-mddata modify from-json "$DOC" /tmp/stage3.json
+mddata write from -d "$DOC" /tmp/stage3.json
 
 # Cleanup
 rm /tmp/stage*.json
@@ -489,7 +489,7 @@ jq '{
 }' /tmp/source-data.json > /tmp/transform.json
 
 # Apply to target
-mddata modify from-json "$TARGET" /tmp/transform.json
+mddata write from -d "$TARGET" /tmp/transform.json
 
 # Cleanup
 rm /tmp/source-data.json /tmp/transform.json
@@ -570,7 +570,7 @@ guide (level 1: #)
 
 ```bash
 # Generate with validation
-mddata modify from-json document.md transform.json
+mddata write from -d document.md transform.json
 
 # Validate after changes
 mddata schema validate document.md schema.json --verbose
@@ -596,7 +596,7 @@ cp "$DOC" "${DOC}.backup"
 
 # Dry run first
 echo "Previewing changes..."
-mddata modify from-json "$DOC" "$TRANSFORM" --dry-run
+mddata write from -d "$DOC" "$TRANSFORM" --dry-run
 
 # Confirm
 read -p "Apply changes? (y/N) " -n 1 -r
@@ -609,7 +609,7 @@ fi
 
 # Apply
 echo "Applying changes..."
-if mddata modify from-json "$DOC" "$TRANSFORM"; then
+if mddata write from -d "$DOC" "$TRANSFORM"; then
     echo "Success!"
     rm "${DOC}.backup"
 else
@@ -625,7 +625,7 @@ fi
 
 Always preview complex changes:
 ```bash
-mddata modify from-json doc.md changes.json --dry-run
+mddata write from -d doc.md changes.json --dry-run
 ```
 
 ### 2. Version Control
@@ -633,7 +633,7 @@ mddata modify from-json doc.md changes.json --dry-run
 Commit before bulk transformations:
 ```bash
 git commit -am "Before bulk transformation"
-mddata modify from-json doc.md transform.json
+mddata write from -d doc.md transform.json
 git diff doc.md
 ```
 
@@ -642,9 +642,9 @@ git diff doc.md
 Break complex changes into smaller transforms:
 ```bash
 # Instead of one large transform
-mddata modify from-json doc.md metadata-updates.json
-mddata modify from-json doc.md content-updates.json
-mddata modify from-json doc.md structure-updates.json
+mddata write from -d doc.md metadata-updates.json
+mddata write from -d doc.md content-updates.json
+mddata write from -d doc.md structure-updates.json
 ```
 
 ### 4. Validate Inputs
@@ -655,7 +655,7 @@ Validate JSON before applying:
 cat transform.json | jq . > /dev/null && echo "Valid JSON"
 
 # Then apply
-mddata modify from-json doc.md transform.json
+mddata write from -d doc.md transform.json
 ```
 
 ### 5. Error Recovery
@@ -666,7 +666,7 @@ Always have a rollback strategy:
 cp document.md document.backup.md
 
 # Transform
-mddata modify from-json document.md transform.json
+mddata write from -d document.md transform.json
 
 # Verify
 mddata info summary document.md
@@ -712,7 +712,7 @@ cat template.json | \
   sed "s/\${AUTHOR}/John Doe/g" | \
   sed "s/\${DATE}/$(date +%Y-%m-%d)/g" | \
   sed "s/\${INTRO_TEXT}/Welcome to the guide/g" | \
-  mddata modify from-json document.md -
+  mddata write from -d document.md -
 ```
 
 ## Complete Workflow Example
@@ -759,7 +759,7 @@ EOF
 # Apply to all docs
 for doc in docs/**/*.md; do
     echo "Processing: $doc"
-    mddata modify from-json "$doc" /tmp/release-transform.json
+    mddata write from -d "$doc" /tmp/release-transform.json
 done
 
 # Cleanup

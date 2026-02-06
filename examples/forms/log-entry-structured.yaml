@@ -1,0 +1,44 @@
+# Log Entry Form - Structured YAML Format
+# Demonstrates clear separation of title, level, and content
+
+parameters:
+  entry_title:
+    type: str
+    required: true
+    min: 3
+    description: "Entry title"
+
+  category:
+    type: str
+    required: false
+    default: "general"
+    enum: ["feature", "bugfix", "update", "general"]
+    description: "Entry category"
+
+  description:
+    type: str
+    required: true
+    min: 10
+    description: "Entry description"
+
+  tags:
+    type: array
+    item_type: str
+    required: false
+    default: []
+    description: "Entry tags"
+
+frontmatter:
+  last_updated: "{date}"
+
+sections:
+  - id: "changelog"
+    title: "{entry_title}"
+    level: 2
+    policy: append
+    content: |
+      **Date:** {date}
+      **Category:** {category}
+      **Tags:** {tags}
+
+      {description}

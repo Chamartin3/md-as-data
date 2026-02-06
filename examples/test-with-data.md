@@ -6,8 +6,6 @@ tags: test, example
 ---
 # Introduction
 
-# Introduction
-
 This document was created on 2025-11-18 by Jane Doe.
 
 ## Overview

@@ -22,7 +22,7 @@ The Markdown Data format is used by these commands:
 | `mddata generate --data` | Create markdown from data | `mddata generate --data doc.json --output doc.md` |
 | `mddata extract json` | Extract markdown to JSON | `mddata extract json doc.md --output data.json` |
 | `mddata extract yaml` | Extract markdown to YAML | `mddata extract yaml doc.md --output data.yaml` |
-| `mddata modify from-json` | Apply batch changes | `mddata modify from-json doc.md changes.json` |
+| `mddata write from -d` | Apply batch changes | `mddata write from -d doc.md changes.json` |
 
 ---
 
@@ -821,13 +821,13 @@ mddata extract json document.md
 
 ```bash
 # Apply updates from file
-mddata modify from-json document.md updates.json
+mddata write from -d document.md updates.json
 
 # Apply from stdin
-cat updates.json | mddata modify from-json document.md -
+cat updates.json | mddata write from -d document.md -
 
 # Preview changes (dry run)
-mddata modify from-json document.md updates.json --dry-run
+mddata write from -d document.md updates.json --dry-run
 ```
 
 ---
@@ -871,7 +871,7 @@ cat > updates.json << 'EOF'
 EOF
 
 # Apply updates
-mddata modify from-json document.md updates.json
+mddata write from -d document.md updates.json
 ```
 
 ### Data Integration

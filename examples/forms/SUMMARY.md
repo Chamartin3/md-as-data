@@ -6,7 +6,9 @@ Created: 2025-10-22
 
 This directory contains a complete set of working examples for the mddata template system (Tasks 017-021, 025).
 
-### Template Files (3)
+### Template Files (6)
+
+**Raw Markdown Format (Original):**
 
 1. **log-entry.yaml** - Simple Template
    - 3 parameters (title, content, category)
@@ -15,13 +17,33 @@ This directory contains a complete set of working examples for the mddata templa
 
 2. **meeting-notes.yaml** - Array Parameters
    - 4 parameters (title, attendees, action_items, decisions)
-   - Demonstrates: Array parameters, JSON parsing, comma-separated formatting
+   - Demonstrates: Array parameters, JSON parsing, comma-separated formatting, append policy
    - Use case: Documenting meetings with structured data
+   - **Advanced use**: Parameterized section targeting for adding meetings to specific sections
 
 3. **bug-report.yaml** - Complex Constraints
    - 7 parameters (title, severity, priority, description, affected_versions, reporter, reproduce_steps)
    - Demonstrates: Constraints (min, max, enum), environment variables, multiple types
    - Use case: Creating validated bug reports
+
+**Structured YAML Format (Recommended):**
+
+4. **meeting-structured-best.yaml** - Best Practice Structured Meeting Notes ⭐
+   - Uses `title` + `level` + `content` (with markdown subsections)
+   - Demonstrates: Parameterized titles, explicit levels, working subsections
+   - **Recommended approach** for structured forms
+
+5. **meeting-structured.yaml** - Structured Meeting Notes (alternative)
+   - Shows nested `children` structure (has limitations)
+   - See meeting-structured-best.yaml for recommended approach
+
+6. **log-entry-structured.yaml** - Structured Log Entry
+   - Structured YAML with explicit title/level
+   - Demonstrates: Clean YAML structure, category enums
+
+7. **simple.yaml** - Minimal Example
+   - Simple parameter form with basic structure
+   - Good starting point for learning
 
 ### Documentation (2)
 
@@ -132,15 +154,69 @@ mddata write --form template.yaml --output document.md \
 ## Files Created
 
 ```
-examples/templates/
-├── README.md                    # Complete usage guide
-├── SUMMARY.md                   # This file
-├── demo_template_usage.py       # Interactive demo script
-├── test-document.md             # Sample target document
-├── log-entry.yaml               # Simple template
-├── meeting-notes.yaml           # Array parameters template
-└── bug-report.yaml              # Complex constraints template
+examples/forms/
+├── README.md                      # Complete usage guide
+├── SUMMARY.md                     # This file
+├── test-document.md               # Sample target document
+│
+├── Raw Markdown Format:
+├── log-entry.yaml                 # Simple template
+├── meeting-notes.yaml             # Array parameters template
+├── bug-report.yaml                # Complex constraints template
+├── simple.yaml                    # Minimal example
+├── role.yaml                      # Complex role template
+│
+└── Structured YAML Format (Recommended):
+    ├── meeting-structured.yaml    # Structured meeting notes
+    └── log-entry-structured.yaml  # Structured log entry
 ```
+
+## Advanced Use Case: Targeted Section Addition
+
+Forms support **parameterized section IDs**, allowing dynamic targeting of where content gets inserted. This is particularly useful for adding entries to specific subsections in a log.
+
+### Example: Adding Meetings to Different Sections
+
+```yaml
+# meeting-entry.yaml
+parameters:
+  target:
+    type: str
+    required: true
+    description: "Target section ID (e.g., 'november_2025', 'team_a.weekly')"
+  title:
+    type: str
+    required: true
+
+sections:
+  - id: "{target}"  # Section ID uses parameter value
+    content: |
+      ### {title} - {date}
+      Meeting content...
+    policy: append
+```
+
+**Usage:**
+
+```bash
+# Add to november_2025 section
+mddata write from -f meeting-entry.yaml \
+  -p target="november_2025" \
+  -p title="Sprint Planning" \
+  meetings-log.md
+
+# Add to team_a.weekly subsection
+mddata write from -f meeting-entry.yaml \
+  -p target="team_a.weekly" \
+  -p title="Standup" \
+  meetings-log.md
+```
+
+**Key Points:**
+- Section IDs are auto-generated: `## November 2025` → `november_2025`
+- Use dot notation for nested sections: `parent_section.child_section`
+- `policy: append` ensures content is added, not replaced
+- Check available IDs with: `mddata info sections file.md`
 
 ## Next Steps
 
