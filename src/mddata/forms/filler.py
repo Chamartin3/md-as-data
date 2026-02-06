@@ -1,11 +1,11 @@
-"""Template filling engine - unified entry point for template substitution.
+"""Form filling engine for parameterized markdown forms.
 
-This module consolidates all template filling logic into a single, cohesive interface.
+This module provides the core logic for filling markdown forms with parameter values.
 It handles parameter resolution, computed values, placeholder substitution, and
 comprehensive parameter validation with enums, array constraints, and pattern matching.
 
 Public API:
-- TemplateFiller: Main class for filling templates with parameters
+- MarkdownFormFiller: Main class for filling forms with parameters
 - ComputedParam: Enum of available computed parameters
 
 Parameter Validation Features:
@@ -939,7 +939,3 @@ class MarkdownFormFiller:
             "definitions": self.form.parameters,
             "computed": self.get_computed_parameters(),
         }
-
-
-# Backward compatibility alias
-TemplateFiller = MarkdownFormFiller

@@ -142,7 +142,7 @@ def write_from(
     try:
         # Case 1: Form provided - fill form with parameters from data/CLI/params_file
         if form:
-            from mddata.templates.filler import MarkdownFormFiller
+            from mddata.forms import MarkdownFormFiller
 
             # Load form
             form_source = str(form) if form != Path("-") else "-"
