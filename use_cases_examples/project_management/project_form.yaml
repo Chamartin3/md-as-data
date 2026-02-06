@@ -1,0 +1,215 @@
+parameters:
+  project_name:
+    type: str
+    required: true
+    min: 3
+    max: 80
+    description: "Name of the project"
+  
+  project_type:
+    type: str
+    enum: ["internal", "client", "research"]
+    enum_strict: true
+    required: true
+    description: "Type of project"
+  
+  priority:
+    type: str
+    enum: ["low", "medium", "high", "critical"]
+    default: "medium"
+    description: "Project priority level"
+  
+  start_date:
+    type: str
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    default: "{date}"
+    description: "Project start date (YYYY-MM-DD)"
+  
+  end_date:
+    type: str
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    required: true
+    description: "Project end date (YYYY-MM-DD)"
+  
+  project_manager:
+    type: str
+    default: "{env.USER}"
+    description: "Project manager name"
+  
+  team_size:
+    type: int
+    min: 1
+    max: 50
+    default: 5
+    description: "Number of team members"
+  
+  budget:
+    type: float
+    min: 0
+    description: "Project budget in USD (optional)"
+  
+  milestones:
+    type: array
+    item_type: object
+    required: true
+    description: "Project milestones"
+    items:
+      name:
+        type: str
+        required: true
+      due_date:
+        type: str
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        required: true
+      status:
+        type: str
+        enum: ["not-started", "in-progress", "completed"]
+        default: "not-started"
+  
+  risks:
+    type: array
+    item_type: str
+    default: []
+    description: "List of project risks"
+  
+  tags:
+    type: array
+    item_type: str
+    default: []
+    description: "Project tags for categorization"
+
+frontmatter:
+  title: "{project_name}"
+  type: "{project_type}"
+  priority: "{priority}"
+  start_date: "{start_date}"
+  end_date: "{end_date}"
+  project_manager: "{project_manager}"
+  team_size: "{team_size}"
+  budget: "{budget}"
+  status: "planning"
+  tags: "{tags}"
+
+sections:
+  project-overview:
+    content: |
+      # {project_name}
+      
+      **Project Type:** {project_type}
+      **Priority:** {priority}
+      **Timeline:** {start_date} to {end_date}
+      **Project Manager:** {project_manager}
+      **Team Size:** {team_size} members
+      {%- if budget %}
+      **Budget:** ${budget:,.2f}
+      {%- endif %}
+      
+      ## Project Description
+      
+      [Add detailed project description here]
+      
+      ## Objectives
+      
+      - [Objective 1]
+      - [Objective 2]
+      - [Objective 3]
+      
+      ## Success Criteria
+      
+      - [Success criterion 1]
+      - [Success criterion 2]
+      - [Success criterion 3]
+
+  team-and-resources:
+    content: |
+      ## Team Structure
+      
+      Project team consists of {team_size} members with diverse skills and expertise.
+    
+    subsections:
+      team-members:
+        content: |
+          ### Team Members
+          
+          - {project_manager} (Project Manager)
+          - [Add team member 2] (Role)
+          - [Add team member 3] (Role)
+          {%- for i in range(team_size - 3) %}
+          - [Team member {{i + 4}}] (Role)
+          {%- endfor %}
+      
+      budget-allocation:
+        content: |
+          ### Budget Allocation
+          
+          {%- if budget %}
+          **Total Budget:** ${budget:,.2f}
+          
+          - Personnel: ${budget * 0.7:,.2f} (70%)
+          - Tools & Software: ${budget * 0.15:,.2f} (15%)
+          - Infrastructure: ${budget * 0.10:,.2f} (10%)
+          - Contingency: ${budget * 0.05:,.2f} (5%)
+          {%- else %}
+          Budget information to be determined.
+          {%- endif %}
+
+  milestones-and-timeline:
+    content: |
+      ## Project Milestones
+      
+      {%- for milestone in milestones %}
+      ### {{milestone.name}}
+      - **Due Date:** {{milestone.due_date}}
+      - **Status:** {{milestone.status}}
+      - **Description:** [Add description]
+      
+      {%- endfor %}
+      
+      ## Timeline Overview
+      
+      | Phase | Start Date | End Date | Duration |
+      |-------|------------|----------|----------|
+      | Planning | {start_date} | [TBD] | [TBD] |
+      | Development | [TBD] | [TBD] | [TBD] |
+      | Testing | [TBD] | [TBD] | [TBD] |
+      | Deployment | [TBD] | {end_date} | [TBD] |
+
+  risks-and-mitigation:
+    content: |
+      ## Risk Assessment
+      
+      {%- if risks %}
+      {%- for risk in risks %}
+      ### Risk: {{risk}}
+      - **Impact:** [High/Medium/Low]
+      - **Probability:** [High/Medium/Low]
+      - **Mitigation:** [Add mitigation strategy]
+      
+      {%- endfor %}
+      {%- else %}
+      No specific risks identified at this time. Regular risk assessment will be conducted throughout the project.
+      {%- endif %}
+      
+      ## Risk Monitoring
+      
+      Risk assessments will be reviewed weekly during team meetings.
+
+  status-updates:
+    content: |
+      ## Weekly Status Updates
+      
+      Status updates will be posted here each week to track progress and address any blockers.
+      
+      ### Template for Updates
+      
+      **Week [Number] ([Date Range])**
+      - **Completed:**
+        - [Item 1]
+        - [Item 2]
+      - **In Progress:**
+        - [Item 1]
+        - [Item 2]
+      - **Blockers:**
+        - [Blocker description]
+      - **Next Week:**
+        - [Planned activities]

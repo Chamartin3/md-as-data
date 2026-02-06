@@ -1,0 +1,49 @@
+{
+  "project_name": "E-commerce Platform Upgrade",
+  "project_type": "client",
+  "priority": "high",
+  "start_date": "2024-02-01",
+  "end_date": "2024-08-31",
+  "project_manager": "Sarah Johnson",
+  "team_size": 12,
+  "budget": 450000,
+  "milestones": [
+    {
+      "name": "Requirements Analysis",
+      "due_date": "2024-02-28",
+      "status": "not-started"
+    },
+    {
+      "name": "System Design",
+      "due_date": "2024-03-31",
+      "status": "not-started"
+    },
+    {
+      "name": "Backend Development",
+      "due_date": "2024-05-31",
+      "status": "not-started"
+    },
+    {
+      "name": "Frontend Development",
+      "due_date": "2024-06-30",
+      "status": "not-started"
+    },
+    {
+      "name": "Testing & QA",
+      "due_date": "2024-07-31",
+      "status": "not-started"
+    },
+    {
+      "name": "Deployment & Go-Live",
+      "due_date": "2024-08-31",
+      "status": "not-started"
+    }
+  ],
+  "risks": [
+    "Third-party API integration delays",
+    "Client scope creep",
+    "Performance requirements not met",
+    "Team member availability conflicts"
+  ],
+  "tags": ["ecommerce", "upgrade", "client-work", "high-priority"]
+}

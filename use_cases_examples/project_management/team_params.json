@@ -1,0 +1,43 @@
+{
+  "project_name": "Internal Documentation System",
+  "project_type": "internal",
+  "priority": "medium",
+  "start_date": "2024-01-22",
+  "end_date": "2024-04-15",
+  "project_manager": "David Chen",
+  "team_size": 6,
+  "budget": 75000,
+  "milestones": [
+    {
+      "name": "Current State Analysis",
+      "due_date": "2024-02-05",
+      "status": "completed"
+    },
+    {
+      "name": "Platform Selection",
+      "due_date": "2024-02-19",
+      "status": "in-progress"
+    },
+    {
+      "name": "Content Migration",
+      "due_date": "2024-03-15",
+      "status": "not-started"
+    },
+    {
+      "name": "User Training",
+      "due_date": "2024-04-01",
+      "status": "not-started"
+    },
+    {
+      "name": "System Launch",
+      "due_date": "2024-04-15",
+      "status": "not-started"
+    }
+  ],
+  "risks": [
+    "Data loss during migration",
+    "Low user adoption",
+    "Integration issues with existing tools"
+  ],
+  "tags": ["documentation", "internal", "productivity"]
+}
