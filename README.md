@@ -1,10 +1,10 @@
 # mddata
 
-Markdown already carries structure. Frontmatter behaves like typed parameters, and heading hierarchies behave like addressable data trees.
+Treat markdown files as structured data.
 
-Most tooling ignores this and treats markdown as plain text, re-parsing whole files for every change. mddata exposes the latent structure: files become queryable data, single branches can be read or edited in isolation, and schemas can be inferred across collections of documents.
+Frontmatter is typed metadata. Heading trees are addressable hierarchies. mddata exposes both, so documents can be queried, edited, and validated like JSON — branch by branch, without rewriting whole files.
 
-The same primitives cover general markdown management (notes, specs, changelogs, knowledge bases), make it practical to query across many files at once, and reduce token cost when LLMs or coding agents work with the same documents.
+Useful for managing collections of notes, specs, changelogs, and knowledge bases; for inferring shared schemas across many documents; and for keeping token costs down when LLMs and coding agents operate on the same files.
 
 - **Parse** markdown + frontmatter into structured data
 - **Query** sections by path (`intro.overview`) with fuzzy matching

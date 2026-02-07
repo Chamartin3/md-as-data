@@ -200,3 +200,6 @@ NEXT_STEPS.md
 
 # Package name alias (copy of md_as_data)
 src/mdasdata/
+
+# Claude Code local config
+.claude/
