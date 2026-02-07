@@ -1,0 +1,25 @@
+{
+  "author_name": "Dr. Sarah Chen",
+  "author_title": "Senior Software Architect",
+  "author_company": "TechCorp Solutions",
+  "author_bio": "Dr. Sarah Chen has over 15 years of experience in software architecture and distributed systems. She holds a Ph.D. in Computer Science and has led development teams at several Fortune 500 companies.",
+  "profile_image": "https://example.com/images/sarah-chen.jpg",
+  "social_links": [
+    {
+      "platform": "Twitter",
+      "url": "https://twitter.com/sarahchen_dev"
+    },
+    {
+      "platform": "LinkedIn", 
+      "url": "https://linkedin.com/in/sarah-chen-architect"
+    },
+    {
+      "platform": "GitHub",
+      "url": "https://github.com/sarahchen"
+    },
+    {
+      "platform": "Website",
+      "url": "https://sarahchen.dev"
+    }
+  ]
+}

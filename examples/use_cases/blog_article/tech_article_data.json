@@ -1,0 +1,11 @@
+{
+  "title": "Building Scalable Microservices with Python",
+  "subtitle": "A comprehensive guide to distributed architecture patterns",
+  "author_name": "Dr. Sarah Chen",
+  "category": "Programming",
+  "tags": "python,microservices,architecture,distributed-systems",
+  "publish_date": "2024-02-01",
+  "estimated_reading_time": 25,
+  "featured": true,
+  "seo_description": "Learn how to build scalable microservices with Python. Comprehensive guide covering architecture patterns, best practices, and real-world examples."
+}

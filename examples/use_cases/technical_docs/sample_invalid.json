@@ -1,0 +1,14 @@
+{
+  "frontmatter": {
+    "title": "Invalid API Doc",
+    "version": "invalid-version",
+    "date": "not-a-date",
+    "status": "invalid-status",
+    "tags": ["api"]
+  },
+  "sections": {
+    "overview": {
+      "content": "This document has invalid data that should fail schema validation."
+    }
+  }
+}

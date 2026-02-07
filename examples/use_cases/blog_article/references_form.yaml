@@ -1,0 +1,79 @@
+parameters:
+  references:
+    type: array
+    item_type: object
+    description: "Academic or book references"
+    items:
+      title:
+        type: str
+        required: true
+      author:
+        type: str
+        required: true
+      year:
+        type: str
+        pattern: "^\\d{4}$"
+        required: true
+      url:
+        type: str
+        description: "Optional URL to the reference"
+      isbn:
+        type: str
+        description: "ISBN for books"
+  
+  further_reading:
+    type: array
+    item_type: object
+    description: "Additional reading links"
+    items:
+      title:
+        type: str
+        required: true
+      url:
+        type: str
+        required: true
+      description:
+        type: str
+        description: "Brief description of the link"
+  
+  related_articles:
+    type: array
+    item_type: object
+    description: "Related articles from this site"
+    items:
+      title:
+        type: str
+        required: true
+      url:
+        type: str
+        required: true
+      date:
+        type: str
+        pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+
+sections:
+  references:
+    content: |
+      {%- if references %}
+      ## References
+      
+      {%- for ref in references %}
+      {{loop.index}}. {{ref.author}} ({{ref.year}}). *{{ref.title}}*.{%- if ref.url %} Available at: [{{ref.url}}]({{ref.url}}){%- endif %}{%- if ref.isbn %} ISBN: {{ref.isbn}}{%- endif %}
+      {%- endfor %}
+      {%- endif %}
+      
+      {%- if further_reading %}
+      ## Further Reading
+      
+      {%- for reading in further_reading %}
+      - [{{reading.title}}]({{reading.url}}){%- if reading.description %} - {{reading.description}}{%- endif %}
+      {%- endfor %}
+      {%- endif %}
+      
+      {%- if related_articles %}
+      ## Related Articles
+      
+      {%- for article in related_articles %}
+      - [{{article.title}}]({{article.url}}) ({{article.date}})
+      {%- endfor %}
+      {%- endif %}

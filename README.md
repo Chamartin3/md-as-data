@@ -1,12 +1,14 @@
 # mddata
 
-Treat markdown files as structured data. Parse, query, modify, validate, and generate markdown documents programmatically — from the CLI or Python.
+Markdown already carries structure. Frontmatter behaves like typed parameters, and heading hierarchies behave like addressable data trees.
 
-## What it does
+Most tooling ignores this and treats markdown as plain text, re-parsing whole files for every change. mddata exposes the latent structure: files become queryable data, single branches can be read or edited in isolation, and schemas can be inferred across collections of documents.
 
-- **Parse** markdown + frontmatter into a structured object you can navigate
+The same primitives cover general markdown management (notes, specs, changelogs, knowledge bases), make it practical to query across many files at once, and reduce token cost when LLMs or coding agents work with the same documents.
+
+- **Parse** markdown + frontmatter into structured data
 - **Query** sections by path (`intro.overview`) with fuzzy matching
-- **Modify** frontmatter and sections in place
+- **Modify** frontmatter and sections in place — no full rewrite
 - **Extract** to JSON / YAML
 - **Generate** markdown from data or from parameterized forms
 - **Validate** documents against schemas (JSON or YAML)
@@ -35,7 +37,7 @@ mddata write --data changes.json existing.md         # modify (auto-detected)
 mddata write --form template.yaml -p title="Hi" -o post.md
 mddata write --schema schema.json --output template.md
 
-# Granular edits
+# Granular edits — touch one branch, leave the rest alone
 mddata write set-property document.md title "New Title"
 mddata write set-section document.md intro "Updated content"
 mddata write remove-property document.md draft

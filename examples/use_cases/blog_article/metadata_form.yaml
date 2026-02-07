@@ -1,0 +1,85 @@
+parameters:
+  title:
+    type: str
+    required: true
+    min: 10
+    max: 100
+    description: "Article title"
+  
+  subtitle:
+    type: str
+    max: 150
+    description: "Article subtitle (optional)"
+  
+  author_name:
+    type: str
+    required: true
+    min: 2
+    description: "Author's full name"
+  
+  category:
+    type: str
+    enum: ["Programming", "Tutorial", "News", "Opinion", "Review"]
+    required: true
+    description: "Article category"
+  
+  tags:
+    type: str
+    pattern: "^[a-z0-9,-]+$"
+    description: "Comma-separated tags (lowercase, no spaces)"
+  
+  publish_date:
+    type: str
+    pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+    default: "{date}"
+    description: "Publication date (YYYY-MM-DD)"
+  
+  estimated_reading_time:
+    type: int
+    min: 1
+    max: 60
+    description: "Estimated reading time in minutes"
+  
+  featured:
+    type: bool
+    default: false
+    description: "Whether article is featured"
+  
+  seo_description:
+    type: str
+    max: 160
+    description: "SEO meta description"
+
+frontmatter:
+  title: "{title}"
+  {%- if subtitle %}
+  subtitle: "{subtitle}"
+  {%- endif %}
+  author: "{author_name}"
+  category: "{category}"
+  {%- if tags %}
+  tags: [{%- for tag in tags.split(',') %}"{{tag.strip()}}"{% if not loop.last %}, {% endif %}{%- endfor %}]
+  {%- endif %}
+  publish_date: "{publish_date}"
+  {%- if estimated_reading_time %}
+  reading_time: "{estimated_reading_time} min read"
+  {%- endif %}
+  featured: {featured}
+  {%- if seo_description %}
+  seo_description: "{seo_description}"
+  {%- endif %}
+  status: "draft"
+
+sections:
+  header:
+    content: |
+      # {title}
+      
+      {%- if subtitle %}
+      ## {subtitle}
+      {%- endif %}
+      
+      **By {author_name}** | **{category}** | **{publish_date}**
+      {%- if estimated_reading_time %} | **{estimated_reading_time} min read**{%- endif %}
+      
+      ---
