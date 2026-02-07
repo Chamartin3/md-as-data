@@ -126,7 +126,6 @@ md_as_data/
    scripts/                    # Development scripts
    pyproject.toml             # Project configuration
    README.md                  # This file
-   CLAUDE.md                  # Development guidelines
    USAGE.md                   # Detailed usage examples
    SDK_EXAMPLES.md            # Interactive development examples
 ```

@@ -259,6 +259,5 @@ cat blog_post_data.json | jq empty
 ## See Also
 
 - [CLI Reference](../../docs/CLI_REFERENCE.md#generate-commands)
-- [CLAUDE.md](../../CLAUDE.md#generate-commands)
 - [Schema Examples](../schemas/)
 - [Task List Examples](../task_lists/)

@@ -943,5 +943,4 @@ parameters:
 ## Related Documentation
 
 - **[CLI Reference](CLI_REFERENCE.md)** - Complete CLI documentation
-- **[CLAUDE.md](../CLAUDE.md)** - Developer guide with Forms section
 - **[Schema Validation](MARKDOWN_SCHEMA.md)** - Schema generation and validation
